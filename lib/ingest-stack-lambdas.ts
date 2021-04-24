@@ -1,8 +1,13 @@
 import * as cdk from "@aws-cdk/core";
 
 import { LayerVersion, AssetCode, Runtime, Function } from "@aws-cdk/aws-lambda"
+import { ManagedPolicy, Role, ServicePrincipal } from "@aws-cdk/aws-iam"
+import {Cluster, ContainerImage, FargateTaskDefinition} from "@aws-cdk/aws-ecs"
+import { Vpc } from "@aws-cdk/aws-ec2"
 import { CfnParameter } from "@aws-cdk/core";
 import * as path from "path";
+import {ApplicationLoadBalancedFargateService} from "@aws-cdk/aws-ecs-patterns";
+import {LogGroup} from "@aws-cdk/aws-logs";
 
 
 export interface ContextIngestionProps extends cdk.StackProps {
@@ -11,7 +16,7 @@ export interface ContextIngestionProps extends cdk.StackProps {
     readonly kaggleCompetition?: string;
 }
 
-export class IngestStack extends cdk.Stack {
+export class IngestStackLambdas extends cdk.Stack {
     constructor(scope: cdk.Construct, id: string, props?: /*cdk.StackProps*/ ContextIngestionProps) {
 
         super(scope, id, props);
@@ -53,6 +58,5 @@ export class IngestStack extends cdk.Stack {
             },
             timeout: cdk.Duration.seconds(200)
         });
-
     }
 }

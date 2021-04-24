@@ -2,11 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const assert_1 = require("@aws-cdk/assert");
 const cdk = require("@aws-cdk/core");
-const IngestCf = require("../lib/ingest-stack");
+const IngestCf = require("../lib/ingest-stack-lambdas");
 test('Empty Stack', () => {
     const app = new cdk.App();
     // WHEN
-    const stack = new IngestCf.IngestStack(app, 'testStack');
+    const stack = new IngestCf.IngestStackLambdas(app, 'testStack');
     // THEN
     assert_1.expect(stack).to(assert_1.matchTemplate({
         "Resources": {}
