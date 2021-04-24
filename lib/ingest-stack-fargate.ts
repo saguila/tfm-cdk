@@ -21,23 +21,20 @@ export class IngestStackFargate extends cdk.Stack {
 
         super(scope, id, props);
 
-        // @ts-ignore
         const vpc = new Vpc(this, "IngestionVpc", {
             maxAzs: 3 // Default is all AZs in region
         });
 
-        // @ts-ignore
         const cluster = new Cluster(this, "Fargate", {
             vpc: vpc
         });
 
         // Create a load-balanced Fargate service and make it public
-        // @ts-ignore
         new ApplicationLoadBalancedFargateService(this, "MyFargateService", {
             cluster: cluster,
             cpu: 256,
             desiredCount: 1,
-            taskImageOptions: { image: ContainerImage.fromAsset(path.join('lib', 'ingestion', 'fargate', 'kaggle-ingest')), environment:[{"test":"sdf"},{"jhkh":"hgjhg"}] },
+            taskImageOptions: { image: ContainerImage.fromAsset(path.join('lib', 'ingestion', 'fargate', 'kaggle-ingest')), environment: { s:"ewr",we:"sds" } },
             memoryLimitMiB: 512,
             publicLoadBalancer: false
         });

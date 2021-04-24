@@ -109,3 +109,4 @@ dist
 
 cdk.out/
 .parcel-cache/
+/yarn.lock
