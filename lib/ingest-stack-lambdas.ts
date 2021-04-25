@@ -35,7 +35,7 @@ export class IngestStackLambdas extends cdk.Stack {
             default:"",
             description: "The API key of Kaggle."});
 
-        const kaggleCompetition = new CfnParameter(this, "kaggleCompetition", {
+        const kaggleDataset = new CfnParameter(this, "kaggleDataset", {
             type: "String",
             default:"",
             description: "Kaggle competition name."});
@@ -54,7 +54,7 @@ export class IngestStackLambdas extends cdk.Stack {
             environment: {
                 KAGGLE_USERNAME: kaggleUser.valueAsString, //props?.kaggleUser || "" ,
                 KAGGLE_KEY: kaggleKey.valueAsString, //props?.kaggleKey || "" ,
-                KAGGLE_COMPETITION: kaggleCompetition.valueAsString // props?.kaggleCompetition || ""
+                KAGGLE_DATASET: kaggleDataset.valueAsString // props?.kaggleDataset || ""
             },
             timeout: cdk.Duration.seconds(200)
         });

@@ -24,6 +24,7 @@
   "dependencies": {
     "@aws-cdk/aws-apigatewayv2": "1.100.0",
     "@aws-cdk/aws-logs": "1.100.0",
+    "@aws-cdk/aws-ssm": "1.100.0",
     "@aws-cdk/aws-cloudfront": "1.100.0",
     "@aws-cdk/aws-ec2": "1.100.0",
     "@aws-cdk/aws-ecs-patterns": "1.100.0",

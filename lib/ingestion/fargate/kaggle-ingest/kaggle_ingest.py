@@ -1,18 +1,23 @@
-from kaggle.api.kaggle_api_extended import KaggleApi
 import boto3
 import os
 import shutil
 
-#Initialize s3 client
+#Initialize AWS Clients
 s3 = boto3.client('s3')
+ssm = boto3.client('ssm')
+
+#Getting secrets needed for initialize API
+os.environ['KAGGLE_USERNAME'] = ssm.get_parameter(Name=os.environ['SSM_REF_KAGGLE_USER'], WithDecryption=True)['Parameter']['Value']
+os.environ['KAGGLE_KEY'] = ssm.get_parameter(Name=os.environ['SSM_REF_KAGGLE_KEY'], WithDecryption=True)['Parameter']['Value']
+
 # Initialize API
+from kaggle.api.kaggle_api_extended import KaggleApi
 api = KaggleApi()
-# USES ENV 'KAGGLE_USERNAME' & 'KAGGLE_KEY'
 api.authenticate()
 
 # Getting variables
 temp_path = "./tmp_dir"
-dataset = os.environ['KAGGLE_DATASET'] #"pronto/cycle-share-dataset"
+dataset = os.environ['KAGGLE_DATASET']
 bucket_name = os.environ['S3_BUCKET']
 s3_output_path = os.environ['S3_INGEST_DIR']
 
@@ -31,6 +36,7 @@ def main():
             local_file = "%s/%s" % (temp_path , filename)
             filename_without_extension = filename.rsplit('.', 1)[0]
             s3_output_file = "%s/%s/%s" % (s3_output_path , filename_without_extension,filename)
+            print("Uploading %s in s3://%s/%s" % (local_file,bucket_name,s3_output_file))
             s3.upload_file(local_file,bucket_name,s3_output_file)
         delete_temp_dir()
 
