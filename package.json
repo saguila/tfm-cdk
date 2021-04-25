@@ -22,7 +22,9 @@
     "typescript": "~3.9.7"
   },
   "dependencies": {
-    "@aws-cdk/aws-apigatewayv2": "1.100.0",
+    "@aws-cdk/aws-lakeformation": "1.100.0",
+    "@aws-cdk/aws-athena": "1.100.0",
+    "@aws-cdk/aws-glue": "1.100.0",
     "@aws-cdk/aws-logs": "1.100.0",
     "@aws-cdk/aws-ssm": "1.100.0",
     "@aws-cdk/aws-cloudfront": "1.100.0",

@@ -8,45 +8,43 @@ import {LogGroup, RetentionDays} from "@aws-cdk/aws-logs";
 import {StringParameter} from "@aws-cdk/aws-ssm";
 import {SubnetType, Vpc} from "@aws-cdk/aws-ec2";
 
-//  yarn cdk deploy -c kaggleUser=sebastial -c kaggleKey=fa9b62c6513da5754f1c238dc465fb94 --parameters kaggleDataset=pronto/cycle-share-dataset --parameters s3BucketOuput=tfm-ingest --parameters s3IngestDir=/raw
+//  yarn cdk deploy -c kaggleUser=sebastial -c kaggleKey=fa9b62c6513da5754f1c238dc465fb94 --parameters kaggleDataset=pronto/cycle-share-dataset --parameters s3BucketOuput=tfm-ingest --parameters s3IngestDir=raw
 export interface ContextIngestionProps extends cdk.StackProps {
     readonly kaggleUser?: string;
     readonly kaggleKey?: string;
 }
 
 export class IngestStackFargate extends cdk.Stack {
-    constructor(scope: cdk.Construct, id: string, props?: /*cdk.StackProps*/ ContextIngestionProps) {
+    constructor(scope: cdk.Construct, id: string, props?: ContextIngestionProps) {
 
         super(scope, id, props);
 
         const kaggleDataset = new CfnParameter(this, "kaggleDataset", {
             type: "String",
             default:"",
-            description: "Kaggle competition name."});
+            description: "Kaggle competition dataset."});
 
         const s3BucketOuput = new CfnParameter(this, "s3BucketOuput", {
             type: "String",
             default:"",
-            description: "Kaggle competition name."});
+            description: "S3 Bucket ingest destination."});
 
         const s3IngestDir = new CfnParameter(this, "s3IngestDir", {
             type: "String",
             default:"",
-            description: "Kaggle competition name."});
+            description: "Path inside S3 Bucket for ingestion."});
 
 
-        //* No puede viajar como parametro porque es un secreto y se puede recurperar */
-        const kaggleUsername = new StringParameter(this,"kaggleUser",{
+        /* Establish SSM Parameter Store secret variables */
+        const kaggleUsernameSSM = new StringParameter(this,"kaggleUser",{
             description: "Kaggle username needed for auth in API",
             stringValue: props?.kaggleUser || ""
         });
-        
-        //* No puede viajar como parametro porque es un secreto y se puede recurperar */
-        const kaggleKey = new StringParameter(this,"kaggleKeySecret",{
+
+        const kaggleKeySSM = new StringParameter(this,"kaggleKeySecret",{
             description: "Kaggle Secret Key for auth in AP",
             stringValue: props?.kaggleKey || ""
         });
-
 
         const ingestVPC = new Vpc(this, "ingestVPC", {
             cidr: "10.0.0.0/16",
@@ -138,51 +136,13 @@ export class IngestStackFargate extends cdk.Stack {
                 image: ContainerImage.fromAsset(path.join('lib', 'ingestion', 'fargate', 'kaggle-ingest')),
                 logging: ingestKaggleLogDriver,
                 environment: {
-                    KAGGLE_DATASET: kaggleDataset.valueAsString, // props?.kaggleDataset || "",
-                    S3_BUCKET: s3BucketOuput.valueAsString, // props?.s3BucketOuput || "",
-                    S3_INGEST_DIR: s3IngestDir.valueAsString, // props?.s3IngestDir || ""
-                    SSM_REF_KAGGLE_USER: kaggleUsername.parameterName,
-                    SSM_REF_KAGGLE_KEY: kaggleKey.parameterName
+                    KAGGLE_DATASET: kaggleDataset.valueAsString,
+                    S3_BUCKET: s3BucketOuput.valueAsString,
+                    S3_INGEST_DIR: s3IngestDir.valueAsString,
+                    SSM_REF_KAGGLE_USER: kaggleUsernameSSM.parameterName,
+                    SSM_REF_KAGGLE_KEY: kaggleKeySSM.parameterName
                 }
             }
         );
-
-
-        /*
-        // Create a load-balanced Fargate service and make it public
-        new ApplicationLoadBalancedFargateService(this, "MyFargateService", {
-            cluster: cluster,
-            cpu: 256,
-            desiredCount: 1,
-            taskImageOptions: {
-                enableLogging: true,
-                image: ContainerImage.fromAsset(path.join('lib', 'ingestion', 'fargate', 'kaggle-ingest')),
-                environment: {
-                    KAGGLE_USERNAME: kaggleUser.valueAsString, //props?.kaggleUser || "" ,
-                    KAGGLE_KEY: kaggleKey.valueAsString, //props?.kaggleKey || "" ,
-                    KAGGLE_DATASET: kaggleDataset.valueAsString, // props?.kaggleDataset || "",
-                    S3_BUCKET: s3BucketOuput.valueAsString, // props?.s3BucketOuput || "",
-                    S3_INGEST_DIR: s3IngestDir.valueAsString, // props?.s3IngestDir || ""
-                    }
-                },
-            memoryLimitMiB: 512,
-            publicLoadBalancer: false
-        });
-        */
-        /*
-        // @ts-ignore
-        const ingestKaggleService = new FargateService(this, "ingestKaggleService", {
-            cluster: cluster,
-            taskDefinition: ingestKaggleTaskDefinition,
-            assignPublicIp: false,
-            desiredCount: 2,
-            securityGroup: bookServiceSecGrp,
-            cloudMapOptions: {
-                name: "bookService",
-                cloudMapNamespace: dnsNamespace,
-            },
-        });
-
-        */
     }
 }
