@@ -1,21 +1,22 @@
-import * as cdk from "@aws-cdk/core";
-import {CfnParameter} from "@aws-cdk/core";
-
-import {Effect, ManagedPolicy, Policy, PolicyStatement, Role, ServicePrincipal} from "@aws-cdk/aws-iam"
-import {AwsLogDriver, Cluster, ContainerImage, FargateTaskDefinition} from "@aws-cdk/aws-ecs"
+import { CfnParameter, Construct, RemovalPolicy, Stack, StackProps } from "@aws-cdk/core";
+import { Effect, ManagedPolicy, Policy, PolicyStatement, Role, ServicePrincipal } from "@aws-cdk/aws-iam"
+import { AwsLogDriver, Cluster, ContainerImage, FargateTaskDefinition } from "@aws-cdk/aws-ecs"
 import * as path from "path";
-import {LogGroup, RetentionDays} from "@aws-cdk/aws-logs";
-import {StringParameter} from "@aws-cdk/aws-ssm";
-import {SubnetType, Vpc} from "@aws-cdk/aws-ec2";
+import { LogGroup, RetentionDays } from "@aws-cdk/aws-logs";
+import { StringParameter } from "@aws-cdk/aws-ssm";
+import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
 
-//  yarn cdk deploy -c kaggleUser=sebastial -c kaggleKey=fa9b62c6513da5754f1c238dc465fb94 --parameters kaggleDataset=pronto/cycle-share-dataset --parameters s3BucketOuput=tfm-ingest --parameters s3IngestDir=raw
-export interface ContextIngestionProps extends cdk.StackProps {
+//  yarn cdk deploy -c kaggleUser=sebastial -c datasetName=cycle_share_dataset -c kaggleKey=fa9b62c6513da5754f1c238dc465fb94 --parameters kaggleDataset=pronto/cycle-share-dataset --parameters s3BucketOuput=tfm-ingest --parameters s3IngestDir=raw --parameters principalArn=arn:aws:iam::901360022621:user/sebastian.aguila@accenture.com
+export interface ContextIngestionProps extends StackProps {
     readonly kaggleUser?: string;
     readonly kaggleKey?: string;
 }
 
-export class IngestStackFargate extends cdk.Stack {
-    constructor(scope: cdk.Construct, id: string, props?: ContextIngestionProps) {
+/**
+ * This class creates
+ */
+export class IngestStackFargate extends Stack {
+    constructor(scope: Construct, id: string, props?: ContextIngestionProps) {
 
         super(scope, id, props);
 
@@ -33,7 +34,6 @@ export class IngestStackFargate extends cdk.Stack {
             type: "String",
             default:"",
             description: "Path inside S3 Bucket for ingestion."});
-
 
         /* Establish SSM Parameter Store secret variables */
         const kaggleUsernameSSM = new StringParameter(this,"kaggleUser",{
@@ -83,7 +83,7 @@ export class IngestStackFargate extends cdk.Stack {
 
         const ingestKaggleLogGroup = new LogGroup(this, "ingestKaggleLogGroup", {
             logGroupName: "/ecs/ingest",
-            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            removalPolicy: RemovalPolicy.DESTROY,
             retention: RetentionDays.THREE_DAYS // destroy logs after 3 days
         });
 
