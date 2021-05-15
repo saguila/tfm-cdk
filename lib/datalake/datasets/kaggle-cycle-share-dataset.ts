@@ -34,7 +34,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
         this.Enrollments.push(new S3DatasetRegister(this, `${datasetName}Enrollment`, {
             DataSetName: datasetName,
             sourceBucket: Bucket.fromBucketName(this,'datalakeBucket', s3BucketOuput.valueAsString),
-            MaxDPUs: 1.0,
+            MaxDPUs: 2,
             sourceBucketDataPrefixes: [
                 `${s3IngestDir.valueAsString}station/`,
                 `${s3IngestDir.valueAsString}trip/`,

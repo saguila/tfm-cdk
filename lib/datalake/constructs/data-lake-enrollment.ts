@@ -17,7 +17,6 @@ export class DataLakeEnrollment extends cdk.Construct {
     constructor(scope: cdk.Construct, id: string, props: DataLakeEnrollment.DataLakeEnrollmentProps) {
         super(scope, id);
 
-
         this.DataSetName = props.DataSetName;
         this.CoarseIamPolciesApplied = false;
         this.WorkflowCronScheduleExpression = props.WorkflowCronScheduleExpression;
@@ -73,7 +72,6 @@ export class DataLakeEnrollment extends cdk.Construct {
             "Effect": "Allow"
         };
         const gluePolicyStatement = iam.PolicyStatement.fromJson(gluePolicy);
-
 
         const athenaPolicy = {
             "Action": [
@@ -240,13 +238,10 @@ export class DataLakeEnrollment extends cdk.Construct {
 
     public grantDataLocationPermissions(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DataLocationGrant , sourceLakeFormationLocation?: lakeformation.CfnResource ){
 
-
-
         var grantIdPrefix = ""
         var dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
             dataLakePrincipalIdentifier: ""
         };
-
 
         var s3Arn = `arn:aws:s3:::${permissionGrant.Location}${permissionGrant.LocationPrefix}` ;
 
@@ -277,7 +272,7 @@ export class DataLakeEnrollment extends cdk.Construct {
 
         if(permissionGrant.Grantable){
             const locationPermission = this.createLakeFormationPermission(`${grantIdPrefix}-locationGrant`,dataLakePrincipal , dataLocationProperty, ['DATA_LOCATION_ACCESS'], ['DATA_LOCATION_ACCESS']);
-
+                // TODO:
             if (sourceLakeFormationLocation != null ) {
                 locationPermission.addDependsOn(sourceLakeFormationLocation);
             }
@@ -427,12 +422,7 @@ export class DataLakeEnrollment extends cdk.Construct {
             this.CoarseIamPolciesApplied = true;
             return;
         }
-
-
-
     }
-
-
 
     private createLakeFormationPermission(resourceId: string, dataLakePrincipal: lakeformation.CfnPermissions.DataLakePrincipalProperty, resource: lakeformation.CfnPermissions.ResourceProperty, permissions: string[], grantablePremissions: string[] ){
         return new lakeformation.CfnPermissions(this, resourceId, {

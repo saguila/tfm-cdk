@@ -1,4 +1,5 @@
 import * as cdk from "@aws-cdk/core";
+import {CfnParameter, StackProps} from "@aws-cdk/core";
 import {
     Effect,
     IPrincipal,
@@ -9,13 +10,13 @@ import {
     ServicePrincipal,
     User
 } from "@aws-cdk/aws-iam";
+import {BucketEncryption} from "@aws-cdk/aws-s3";
 import athena = require("@aws-cdk/aws-athena");
 import cfn = require("@aws-cdk/aws-cloudformation");
 import s3 = require("@aws-cdk/aws-s3");
 import lakeformation = require("@aws-cdk/aws-lakeformation");
 import lambda = require("@aws-cdk/aws-lambda");
 import fs = require("fs");
-import {CfnParameter, StackProps} from "@aws-cdk/core";
 
 export interface DataLakeStackProps extends cdk.StackProps {
     starterLakeFormationAdminPrincipalArn: string;
@@ -81,11 +82,13 @@ export class LakeFormationStack extends cdk.Stack {
 
         // Creates the bucket for datalake
         this.datalakeBucket = new s3.Bucket(this, 'datalakeBucket', {
-            bucketName: s3BucketName.valueAsString
+            bucketName: s3BucketName.valueAsString,
+            encryption: BucketEncryption.S3_MANAGED
         });
 
         this.athenaResultsBucket = new s3.Bucket(this, "athenaResultsBucket",{
-            bucketName: `${s3BucketName.valueAsString}-athena-results`
+            bucketName: `${s3BucketName.valueAsString}-athena-results`,
+            encryption: BucketEncryption.S3_MANAGED
         });
 
         new lakeformation.CfnDataLakeSettings(this, "starterAdminPermission", {

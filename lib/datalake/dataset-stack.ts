@@ -1,6 +1,5 @@
 import * as cdk from '@aws-cdk/core';
 import iam = require('@aws-cdk/aws-iam');
-import { FederatedDataSetTemplate, FederatedCrawlerTemplate, FederatedCrawlerTemplateProps } from './constructs/data-set-enrollment';
 import { DataLakeEnrollment } from './constructs/data-lake-enrollment';
 import { LakeFormationStack } from '../lake-formation-stack';
 
@@ -10,39 +9,6 @@ export interface DataSetTemplateStackProps extends cdk.StackProps {
     DescribeTablesPath: string;
     DataSetName: string;
 }
-
-export class DataSetTemplateStack extends cdk.Stack {
-
-    constructor(scope: cdk.Construct, id: string, props: DataSetTemplateStackProps) {
-        super(scope, id, props);
-
-        new FederatedDataSetTemplate(this, props.DataSetName, {
-            databaseDescriptionPath: props.DatabaseDescriptionPath,
-            tablesDescriptionPath: props.DescribeTablesPath
-        });
-    }
-
-}
-
-export interface CrawlerTemplateStackProps extends cdk.StackProps {
-    databaseDescriptionPath: string;
-    crawlerDescriptionPath: string
-    DataSetName: string;
-}
-
-export class CrawlerTemplateStack extends cdk.Stack {
-
-    constructor(scope: cdk.Construct, id: string, props: CrawlerTemplateStackProps) {
-        super(scope, id, props);
-
-        new FederatedCrawlerTemplate(this, props.DataSetName, {
-            databaseDescriptionPath: props.databaseDescriptionPath,
-            crawlerDescriptionPath: props.crawlerDescriptionPath,
-            dataSetName: props.DataSetName
-        });
-    }
-}
-
 
 export interface DataSetStackProps extends cdk.StackProps {
     datalake: LakeFormationStack;
