@@ -29,8 +29,6 @@ new IngestStackFargate(app,'tfm-ingest-fargate-stack',{
 
 //yarn cdk deploy kaggle-datalake-register-stack -c datasetName=raw  --parameters s3BucketOuput=tfm-ingest
 const kaggleDatasetStack = new KaggleCycleShareDataset(app,'kaggle-datalake-register-stack',{
-    //sourceBucket: Bucket.fromBucketName(app,'datalakeBucket', s3BucketOuput.valueAsString),
-    //sourceBucketDataPrefix: `${s3IngestDir.valueAsString}/`,
     datasetName: app.node.tryGetContext('datasetName'),
     datalake: datalakeStack
 });

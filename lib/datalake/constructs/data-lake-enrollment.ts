@@ -2,11 +2,11 @@ import * as cdk from '@aws-cdk/core';
 import iam = require('@aws-cdk/aws-iam');
 import s3 = require('@aws-cdk/aws-s3');
 import lakeformation = require('@aws-cdk/aws-lakeformation');
-import { DataSetEnrollment } from './data-set-enrollment';
+import { DatasetGlueRegistration } from './dataset-glue-registration';
 
 export class DataLakeEnrollment extends cdk.Construct {
 
-    public DataEnrollment: DataSetEnrollment;
+    public DataEnrollment: DatasetGlueRegistration;
     public DataSetName: string;
     public CoarseAthenaAccessPolicy: iam.ManagedPolicy;
     private CoarseResourceAccessPolicy: iam.ManagedPolicy;
@@ -25,11 +25,13 @@ export class DataLakeEnrollment extends cdk.Construct {
 
     grantGlueRoleLakeFormationPermissions(DataSetGlueRole: iam.Role, DataSetName: string) {
 
+        //TODO: Permissions for database destination
         this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
             Grantable: true,
             GrantResourcePrefix: `${DataSetName}locationGrant`,
             Location: this.DataEnrollment.DataLakeBucketName,
-            LocationPrefix: this.DataEnrollment.DataLakePrefix
+            LocationPrefix: `/${this.DataEnrollment.DataSetName}/`
+            //LocationPrefix: this.DataEnrollment.DataLakePrefix
         });
 
         this.grantDatabasePermission(this.DataEnrollment.DataSetGlueRole,  {
@@ -67,7 +69,8 @@ export class DataLakeEnrollment extends cdk.Construct {
                 `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:catalog`,
                 `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:database/default`,
                 this.DataEnrollment.Dataset_Datalake.databaseArn,
-                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.Dataset_Datalake.databaseName}/*`
+                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.Dataset_Datalake.databaseName}/*`,
+                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.DatabaseDestination}/*` //added
             ],
             "Effect": "Allow"
         };
@@ -236,6 +239,7 @@ export class DataLakeEnrollment extends cdk.Construct {
 
     }
 
+    /* Attach S3 location and permissions to Lake Formation */
     public grantDataLocationPermissions(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DataLocationGrant , sourceLakeFormationLocation?: lakeformation.CfnResource ){
 
         var grantIdPrefix = ""
@@ -272,7 +276,7 @@ export class DataLakeEnrollment extends cdk.Construct {
 
         if(permissionGrant.Grantable){
             const locationPermission = this.createLakeFormationPermission(`${grantIdPrefix}-locationGrant`,dataLakePrincipal , dataLocationProperty, ['DATA_LOCATION_ACCESS'], ['DATA_LOCATION_ACCESS']);
-                // TODO:
+
             if (sourceLakeFormationLocation != null ) {
                 locationPermission.addDependsOn(sourceLakeFormationLocation);
             }

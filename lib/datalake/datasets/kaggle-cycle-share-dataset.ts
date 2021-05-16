@@ -4,8 +4,6 @@ import {Bucket, IBucket} from "@aws-cdk/aws-s3";
 import {CfnParameter, Construct, Stack} from "@aws-cdk/core";
 
 export interface ContextDatasetProps extends DataSetStackProps {
-    //readonly sourceBucket: IBucket;
-    //readonly sourceBucketDataPrefix: string;
     readonly datasetName: string;
 }
 
@@ -24,15 +22,16 @@ export class KaggleCycleShareDataset extends DataSetStack {
         default:"",
         description: "Path inside S3 Bucket for ingestion."});
 
-    const s3StaggingDir = new CfnParameter(this, "s3StaggingDir", {
+    const glueDatabaseDestination = new CfnParameter(this, "glueDatabaseDestination", {
         type: "String",
         default:"",
-        description: "Path inside S3 Bucket for stagging files."});
+        description: "Glue Database Name Destination"});
 
         const datasetName = props?.datasetName;
 
         this.Enrollments.push(new S3DatasetRegister(this, `${datasetName}Enrollment`, {
             DataSetName: datasetName,
+            databaseDestination: glueDatabaseDestination.valueAsString,
             sourceBucket: Bucket.fromBucketName(this,'datalakeBucket', s3BucketOuput.valueAsString),
             MaxDPUs: 2,
             sourceBucketDataPrefixes: [
@@ -48,8 +47,8 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--enable-metrics": "",
                 "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
                 "--DL_REGION": Stack.of(this).region,
-                "--DL_PREFIX": s3StaggingDir.valueAsString, //`/${datasetName}/`,
-                "--GLUE_SRC_DATABASE": `${datasetName}_src`
+                "--DL_PREFIX": `/${glueDatabaseDestination.valueAsString}/`,
+                "--GLUE_SRC_DATABASE": `${datasetName}`
             }
         }));
     }

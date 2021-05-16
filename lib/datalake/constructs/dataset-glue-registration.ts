@@ -10,6 +10,7 @@ import s3assets = require('@aws-cdk/aws-s3-assets');
 export interface DataSetEnrollmentProps extends cdk.StackProps {
     dataLakeBucket: s3.Bucket;
     dataSetName: string;
+    databaseDestination: string;
     SourceConnectionInput?: glue.CfnConnection.ConnectionInputProperty;
     SourceTargets: glue.CfnCrawler.TargetsProperty;
     DataLakeTargets: glue.CfnCrawler.TargetsProperty;
@@ -21,7 +22,7 @@ export interface DataSetEnrollmentProps extends cdk.StackProps {
 }
 
 
-export class DataSetEnrollment extends cdk.Construct {
+export class DatasetGlueRegistration extends cdk.Construct {
 
     public readonly Workflow: DataLakeEnrollmentWorkflow;
     public readonly SrcCrawlerCompleteTrigger: glue.CfnTrigger;
@@ -32,7 +33,7 @@ export class DataSetEnrollment extends cdk.Construct {
     public readonly DataSetGlueRole: iam.Role;
     public readonly Dataset_Source: glue.Database;
     public readonly Dataset_Datalake: glue.Database;
-
+    public readonly DatabaseDestination: string;
     public readonly DataLakeBucketName: string;
     public readonly DataLakePrefix: string;
     public readonly DataLakeTargets: glue.CfnCrawler.TargetsProperty;
@@ -40,7 +41,7 @@ export class DataSetEnrollment extends cdk.Construct {
 
     private setupCrawler(targetGlueDatabase: glue.Database, targets: glue.CfnCrawler.TargetsProperty, isSourceCrawler: boolean){
 
-        var sourceCrawler = isSourceCrawler ? "src" : "dl";
+        const sourceCrawler = isSourceCrawler ? "src" : "dl";
 
         return new glue.CfnCrawler(this,  `${this.DataSetName}-${sourceCrawler}-crawler`,{
             name: `${this.DataSetName}_${sourceCrawler}_crawler`,
@@ -63,16 +64,19 @@ export class DataSetEnrollment extends cdk.Construct {
         this.DataLakeTargets = props.DataLakeTargets;
         this.DataLakeBucketName	= props.GlueScriptArguments['--DL_BUCKET'];
         this.DataLakePrefix = props.GlueScriptArguments['--DL_PREFIX'];
-
+        this.DatabaseDestination = props.databaseDestination;
         this.DataSetName = props.dataSetName;
 
-        this.Dataset_Source = new glue.Database(this, `${props.dataSetName}_src`, {
-            databaseName: `${props.dataSetName}_src`,
+        this.Dataset_Source = new glue.Database(this, `${props.dataSetName}_origin`, {
+            databaseName: props.dataSetName,
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.dataSetName}/`
         });
-        this.Dataset_Datalake = new glue.Database(this, `${props.dataSetName}_dl`, {
-            databaseName:  `${props.dataSetName}_dl`,
-            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.dataSetName}/`
+
+        this.Dataset_Datalake = new glue.Database(this, `${props.dataSetName}_destination`, {
+            databaseName: props.databaseDestination,///*this.DataLakePrefix.replace(/\//g,""),*/`${props.dataSetName}_dl`,
+            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/`
+            //locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.dataSetName}/`
+            //locationUri: `s3://${props.dataLakeBucket.bucketName}/*${this.DataLakePrefix}`////${props.dataSetName}/`
         });
 
 
@@ -80,7 +84,7 @@ export class DataSetEnrollment extends cdk.Construct {
 
 
         if(props.SourceConnectionInput){
-            this.SourceConnection = new glue.CfnConnection(this, `${props.dataSetName}-src-connection`, {
+            this.SourceConnection = new glue.CfnConnection(this, `${props.dataSetName}-src-deonnection`, {
                 catalogId: this.Dataset_Source.catalogId,
                 connectionInput: props.SourceConnectionInput
             });

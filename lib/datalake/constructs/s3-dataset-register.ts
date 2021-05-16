@@ -2,16 +2,17 @@ import * as cdk from '@aws-cdk/core';
 import iam = require('@aws-cdk/aws-iam');
 import glue = require('@aws-cdk/aws-glue');
 import s3 = require('@aws-cdk/aws-s3');
-import { DataSetEnrollment } from './data-set-enrollment';
+
 import { DataLakeEnrollment } from './data-lake-enrollment';
 import lakeformation = require("@aws-cdk/aws-lakeformation");
-
+import { DatasetGlueRegistration } from './dataset-glue-registration';
 
 
 export interface S3dataSetEnrollmentProps extends DataLakeEnrollment.DataLakeEnrollmentProps {
     sourceBucket: s3.IBucket;
     sourceBucketDataPrefixes: string[];
     MaxDPUs: number;
+    databaseDestination: string;
 }
 
 export class S3DatasetRegister extends DataLakeEnrollment{
@@ -38,7 +39,7 @@ export class S3DatasetRegister extends DataLakeEnrollment{
 
         super.grantGlueRoleLakeFormationPermissions(DataSetGlueRole, DataSetName);
 
-        /* Da los permisos a Glue */
+        /* Add Lake Formation root Location s3 location & Glue permissions */
         this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
             Grantable: true,
             GrantResourcePrefix: `${DataSetName}SourcelocationGrant`,
@@ -102,8 +103,9 @@ export class S3DatasetRegister extends DataLakeEnrollment{
             }
         }
 
-        this.DataEnrollment = new DataSetEnrollment(this, `${props.DataSetName}-s3Enrollment`, {
+        this.DataEnrollment = new DatasetGlueRegistration(this, `${props.DataSetName}-s3Enrollment`, {
             dataLakeBucket: props.dataLakeBucket,
+            databaseDestination: props.databaseDestination,
             dataSetName: dataSetName,
             SourceAccessPolicy: s3AccessPolicy,
             SourceTargets: {
