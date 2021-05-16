@@ -26,7 +26,6 @@ export class DataSetStack extends cdk.Stack {
 
 
     public grantDatabasePermissions( principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DatabasePermissionGrant){
-
         for(let enrollment of this.Enrollments){
             enrollment.grantDatabasePermission(principal, permissionGrant);
         }

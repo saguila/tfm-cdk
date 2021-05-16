@@ -35,9 +35,9 @@ export class KaggleCycleShareDataset extends DataSetStack {
             sourceBucket: Bucket.fromBucketName(this,'datalakeBucket', s3BucketOuput.valueAsString),
             MaxDPUs: 2,
             sourceBucketDataPrefixes: [
-                `${s3IngestDir.valueAsString}station/`,
-                `${s3IngestDir.valueAsString}trip/`,
-                `${s3IngestDir.valueAsString}weather/`
+                `/${datasetName}/station/`,
+                `/${datasetName}/trip/`,
+                `/${datasetName}/weather/`,
             ],
             dataLakeBucket: props.datalake.datalakeBucket,
             GlueScriptPath: "lib/datalake/datasets/glue-scripts/raw_to_stagging.py",
@@ -48,7 +48,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
                 "--DL_REGION": Stack.of(this).region,
                 "--DL_PREFIX": `/${glueDatabaseDestination.valueAsString}/`,
-                "--GLUE_SRC_DATABASE": `${datasetName}`
+                "--GLUE_SRC_DATABASE": datasetName
             }
         }));
     }

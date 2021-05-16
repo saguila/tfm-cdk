@@ -37,7 +37,8 @@ export class S3DatasetRegister extends DataLakeEnrollment{
             }
         );
 
-        super.grantGlueRoleLakeFormationPermissions(DataSetGlueRole, DataSetName);
+        //TODO: Review it
+        //super.grantGlueRoleLakeFormationPermissions(DataSetGlueRole, DataSetName);
 
         /* Add Lake Formation root Location s3 location & Glue permissions */
         this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
@@ -81,7 +82,7 @@ export class S3DatasetRegister extends DataLakeEnrollment{
         /* Deploy the policy for get objects in the target Bucket*/
         s3AccessPolicy.addStatements(prefixAccessPolicy);
 
-        /* Obtain all folders from input folder for pass to Glue ETL */
+        /* Obtain all origin path for needed as input for Glue ETL & Crawlers */
         for(let bucketPrefix of props.sourceBucketDataPrefixes){
             s3TargetPaths.push({
                 path: `s3://${props.sourceBucket.bucketName}${bucketPrefix}`
@@ -89,16 +90,15 @@ export class S3DatasetRegister extends DataLakeEnrollment{
 
             var prefixFolders = bucketPrefix.split('/')
             var tableFolderName = prefixFolders[prefixFolders.length-2]
-            var tableFolderName = tableFolderName.toLowerCase().replace(/\./g,"_").replace(/-/g,"_");
-
+            var tableFolderName = tableFolderName.toLowerCase().replace(/\//g,"_").replace(/-/g,"_");
             /* If has more child folders into input folder */
             if(props.sourceBucketDataPrefixes.length > 1){
                 s3DataLakePaths.push({
-                    path: `s3://${props.dataLakeBucket.bucketName}/${dataSetName}/${tableFolderName}/`
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/${tableFolderName}/`
                 });
             }else{
                 s3DataLakePaths.push({
-                    path: `s3://${props.dataLakeBucket.bucketName}/${dataSetName}/`
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/`
                 });
             }
         }

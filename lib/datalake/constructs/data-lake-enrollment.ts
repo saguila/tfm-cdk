@@ -52,7 +52,8 @@ export class DataLakeEnrollment extends cdk.Construct {
             ],
             "Resource": [
                 `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}`,
-                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}${this.DataEnrollment.DataLakePrefix}*`
+                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.DataSetName}/*`, //Added
+                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.DatabaseDestination}/*` //Changed
             ],
             "Effect": "Allow"
         };

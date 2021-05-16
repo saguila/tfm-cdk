@@ -39,12 +39,14 @@ export class DatasetGlueRegistration extends cdk.Construct {
     public readonly DataLakeTargets: glue.CfnCrawler.TargetsProperty;
 
 
+    /* Creates a Glue Crawler bassed in */
     private setupCrawler(targetGlueDatabase: glue.Database, targets: glue.CfnCrawler.TargetsProperty, isSourceCrawler: boolean){
 
-        const sourceCrawler = isSourceCrawler ? "src" : "dl";
+        //TODO: Fix this.DataSetName : this.DatabaseDestination;
+        const sourceCrawler  = isSourceCrawler ? "raw" : "stagging";
 
-        return new glue.CfnCrawler(this,  `${this.DataSetName}-${sourceCrawler}-crawler`,{
-            name: `${this.DataSetName}_${sourceCrawler}_crawler`,
+        return new glue.CfnCrawler(this,  `${sourceCrawler}-crawler`,{
+            name: `${sourceCrawler}_crawler`,
             targets: targets,
             role: this.DataSetGlueRole.roleName,
             databaseName: targetGlueDatabase.databaseName,
@@ -55,7 +57,6 @@ export class DatasetGlueRegistration extends cdk.Construct {
             tablePrefix: "",
             classifiers: []
         });
-
     }
 
     constructor(scope: cdk.Construct, id: string, props: DataSetEnrollmentProps) {
@@ -124,7 +125,7 @@ export class DatasetGlueRegistration extends cdk.Construct {
             executionProperty: {
                 maxConcurrentRuns: 1
             },
-            name: `${props.dataSetName}_src_to_dl_etl`,
+            name: `${props.dataSetName}_to_${props.databaseDestination}_etl`, //TODO:Change name
             timeout: 2880,
             glueVersion: "2.0",
             maxCapacity: props.MaxDPUs,
