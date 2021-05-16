@@ -10,6 +10,10 @@ import boto3
 args = getResolvedOptions(sys.argv, ['JOB_NAME','DL_BUCKET', 'DL_PREFIX','DL_REGION', 'GLUE_SRC_DATABASE'])
 
 sc = SparkContext()
+#avoiding spark creates $folders$ in S3
+hadoop_conf = sc._jsc.hadoopConfiguration()
+hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+hadoop_conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 job = Job(glueContext)
@@ -23,7 +27,6 @@ glue_database = args["GLUE_SRC_DATABASE"];
 target_format = "parquet"
 
 client = boto3.client(service_name='glue', region_name=aws_region)
-
 
 tables = []
 keepPullingTables = True
@@ -49,7 +52,7 @@ for table in tables:
     dropnullfields = DropNullFields.apply(frame = datasource, transformation_ctx = "dropnullfields")
 
     try:
-        datasink = glueContext.write_dynamic_frame.from_options(frame = dropnullfields, connection_type = "s3", connection_options = {"path": "s3://"+dataLakeBucket + dataLakePrefix + table}, format = target_format, transformation_ctx = "datasink")
+        datasink = glueContext.write_dynamic_frame.from_options(frame = dropnullfields, connection_type = "s3a", connection_options = {"path": "s3://"+dataLakeBucket + dataLakePrefix + table}, format = target_format, transformation_ctx = "datasink")
     except:
         print("Unable to write" + table)
 

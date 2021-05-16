@@ -74,10 +74,8 @@ export class DatasetGlueRegistration extends cdk.Construct {
         });
 
         this.Dataset_Datalake = new glue.Database(this, `${props.dataSetName}_destination`, {
-            databaseName: props.databaseDestination,///*this.DataLakePrefix.replace(/\//g,""),*/`${props.dataSetName}_dl`,
+            databaseName: props.databaseDestination,
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/`
-            //locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.dataSetName}/`
-            //locationUri: `s3://${props.dataLakeBucket.bucketName}/*${this.DataLakePrefix}`////${props.dataSetName}/`
         });
 
 
