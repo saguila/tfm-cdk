@@ -17,11 +17,6 @@ export class KaggleCycleShareDataset extends DataSetStack {
         default:"",
         description: "S3 Bucket ingest destination."});
 
-    const s3IngestDir = new CfnParameter(this, "s3IngestDir", {
-        type: "String",
-        default:"",
-        description: "Path inside S3 Bucket for ingestion."});
-
     const glueDatabaseDestination = new CfnParameter(this, "glueDatabaseDestination", {
         type: "String",
         default:"",
