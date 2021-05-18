@@ -1,7 +1,12 @@
 import { Construct, Stack, StackProps, SecretValue } from "@aws-cdk/core";
 import { Effect, Group, ManagedPolicy, PolicyStatement, User } from "@aws-cdk/aws-iam";
+import {KaggleCycleShareDataset} from "./datalake/datasets/kaggle-cycle-share-dataset";
+import {DataLakeEnrollment} from "./datalake/constructs/data-lake-enrollment";
 
-export interface ContextUsersLakeFormationProps extends StackProps {}
+export interface ContextUsersLakeFormationProps extends StackProps {
+    dataset: KaggleCycleShareDataset
+    initPasswd: string;
+}
 
 /*
     Administradores: que requieren el acceso completo a las tablas.
@@ -78,37 +83,49 @@ export class UsersLakeFormationStack extends Stack {
         this.admin  = new User(this,'datalake-administrator',{
             userName: 'datalake-administrator',
             groups: [this.group],
-            password: SecretValue.plainText('eiK5ka-)tkmA-2b'),
+            password: SecretValue.plainText(props?.initPasswd || ""),
             permissionsBoundary: permissionsGlue
         });
 
         this.scientist  = new User(this,'datalake-scientist',{
             userName: 'datalake-scientist',
             groups: [this.group],
-            password: SecretValue.plainText('eiK5ka-)tkmA-2b'),
+            password: SecretValue.plainText(props?.initPasswd || ""),
             permissionsBoundary: permissionsGlue
         });
 
         this.staff  = new User(this,'datalake-staff',{
             userName: 'datalake-staff',
             groups: [this.group],
-            password: SecretValue.plainText('eiK5ka-)tkmA-2b'),
+            password: SecretValue.plainText(props?.initPasswd || ""),
             permissionsBoundary: permissionsGlue
         });
 
         this.user  = new User(this,'scientist-user',{
             userName: 'datalake-user',
             groups: [this.group],
-            password: SecretValue.plainText('eiK5ka-)tkmA-2b'),
+            password: SecretValue.plainText(props?.initPasswd || ""),
             permissionsBoundary: permissionsGlue
         });
 
         this.analyst  = new User(this,'datalake-analyst',{
             userName: 'datalake-analyst',
             groups: [this.group],
-            password: SecretValue.plainText('eiK5ka-)tkmA-2b'),
+            password: SecretValue.plainText(props?.initPasswd || ""),
             permissionsBoundary: permissionsGlue
         });
-    }
 
+        var exampleTableWithColumnsGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
+            table: "raw",
+            database: "dataset",
+            columns: ['molregno'],
+            DatabasePermissions: [],
+            GrantableDatabasePermissions: [],
+            TableColumnPermissions: [DataLakeEnrollment.TablePermission.Select],
+            GrantableTableColumnPermissions: []
+        };
+
+        props?.dataset.grantTableWithColumnPermissions(this.analyst, exampleTableWithColumnsGrant);
+
+    }
 }

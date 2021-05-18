@@ -116,7 +116,7 @@ export class DataLakeEnrollment extends cdk.Construct {
         const policyParams = {
             policyName: `${this.DataSetName}-coarseIamDataLakeAccessPolicy`,
             statements: [s3PolicyStatement,gluePolicyStatement, athenaPolicyStatement, coarseLakeFormationPolicy]
-        }
+        };
 
         this.CoarseResourceAccessPolicy = new iam.ManagedPolicy(this, `${this.DataSetName}-coarseIamDataLakeAccessPolicy`, policyParams );
 
@@ -557,6 +557,7 @@ export namespace DataLakeEnrollment
 
     export interface TableWithColumnPermissionGrant {
         table: string;
+        database: string;
         columns: Array<string>;
         wildCardFilter?: TableWithColumnFilter;
         DatabasePermissions: Array<DatabasePermission>;

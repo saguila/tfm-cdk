@@ -143,9 +143,6 @@ export class LakeFormationStack extends cdk.Stack {
                 useServiceLinkedRole: true,
             }
         );
-        lakeformation.CfnPermissions(this,'sds',{
-
-        });
 
         const workGroupConfigCustResourceRole = new Role(
             this,
