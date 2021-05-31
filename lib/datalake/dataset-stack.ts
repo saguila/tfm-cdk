@@ -14,6 +14,9 @@ export interface DataSetStackProps extends cdk.StackProps {
     datalake: LakeFormationStack;
 }
 
+/**
+ * Gestion de los permisos del datalake sobre las tablas
+ */
 export class DataSetStack extends cdk.Stack {
 
     public Enrollments: Array<DataLakeEnrollment> = [];

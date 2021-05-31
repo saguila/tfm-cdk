@@ -30,7 +30,7 @@ export class DataLakeEnrollment extends cdk.Construct {
             Grantable: true,
             GrantResourcePrefix: `${DataSetName}locationGrant`,
             Location: this.DataEnrollment.DataLakeBucketName,
-            LocationPrefix: `/${this.DataEnrollment.DataSetName}/`
+            LocationPrefix: `/${this.DataEnrollment.LandingDatabase}/`
             //LocationPrefix: this.DataEnrollment.DataLakePrefix
         });
 
@@ -52,8 +52,8 @@ export class DataLakeEnrollment extends cdk.Construct {
             ],
             "Resource": [
                 `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}`,
-                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.DataSetName}/*`, //Added
-                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.DatabaseDestination}/*` //Changed
+                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.LandingDatabase}/*`, //Added
+                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.StaggingDatabase}/*` //Changed
             ],
             "Effect": "Allow"
         };
@@ -71,7 +71,7 @@ export class DataLakeEnrollment extends cdk.Construct {
                 `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:database/default`,
                 this.DataEnrollment.Dataset_Datalake.databaseArn,
                 `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.Dataset_Datalake.databaseName}/*`,
-                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.DatabaseDestination}/*` //added
+                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.StaggingDatabase}/*` //added
             ],
             "Effect": "Allow"
         };
@@ -531,6 +531,8 @@ export namespace DataLakeEnrollment
         GlueScriptPath: string;
         GlueScriptArguments: any;
         DataSetName: string;
+        GlueScriptPathGold: string;
+        GlueScriptArgumentsGold: any;
         WorkflowCronScheduleExpression?: string;
     }
 

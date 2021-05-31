@@ -115,6 +115,7 @@ export class UsersLakeFormationStack extends Stack {
             permissionsBoundary: permissionsGlue
         });
 
+        /*
         var exampleTableWithColumnsGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
             table: "raw",
             database: "dataset",
@@ -126,6 +127,6 @@ export class UsersLakeFormationStack extends Stack {
         };
 
         props?.dataset.grantTableWithColumnPermissions(this.analyst, exampleTableWithColumnsGrant);
-
+         */
     }
 }

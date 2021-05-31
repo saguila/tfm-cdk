@@ -13,9 +13,13 @@ export interface S3dataSetEnrollmentProps extends DataLakeEnrollment.DataLakeEnr
     sourceBucketDataPrefixes: string[];
     MaxDPUs: number;
     databaseDestination: string;
+    DatabaseGold: string;
 }
 
-export class S3DatasetRegister extends DataLakeEnrollment{
+/**
+ * Gestor de los permisos de S3 para el dataset
+ */
+export class S3DatasetRegister extends DataLakeEnrollment {
 
     private readonly sourceBucket: s3.IBucket;
 
@@ -61,6 +65,7 @@ export class S3DatasetRegister extends DataLakeEnrollment{
 
         let s3TargetPaths = new Array<glue.CfnCrawler.S3TargetProperty>();
         let s3DataLakePaths = new Array<glue.CfnCrawler.S3TargetProperty>();
+        let s3DataLakeGoldPaths = new Array<glue.CfnCrawler.S3TargetProperty>();
 
         /* Add permission for list the target bucket */
         const bucketListPolicy = new iam.PolicyStatement({
@@ -93,18 +98,29 @@ export class S3DatasetRegister extends DataLakeEnrollment{
             var tableFolderName = tableFolderName.toLowerCase().replace(/\//g,"_").replace(/-/g,"_");
             /* If has more child folders into input folder */
             if(props.sourceBucketDataPrefixes.length > 1){
+                /* Path for Stagging database Datasets */
                 s3DataLakePaths.push({
                     path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/${tableFolderName}/`
                 });
+                /* Path for Gold database Datasets */
+                s3DataLakeGoldPaths.push({
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.DatabaseGold}/${tableFolderName}/`
+                });
             }else{
+                /* Paths for Stagging database Datasets */
                 s3DataLakePaths.push({
                     path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/`
+                });
+                /* Paths for Gold database Datasets */
+                s3DataLakeGoldPaths.push({
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.DatabaseGold}/`
                 });
             }
         }
 
         this.DataEnrollment = new DatasetGlueRegistration(this, `${props.DataSetName}-s3Enrollment`, {
             dataLakeBucket: props.dataLakeBucket,
+            DatabaseGold: props.DatabaseGold,
             databaseDestination: props.databaseDestination,
             dataSetName: dataSetName,
             SourceAccessPolicy: s3AccessPolicy,
@@ -116,7 +132,12 @@ export class S3DatasetRegister extends DataLakeEnrollment{
             DataLakeTargets: {
                 s3Targets: s3DataLakePaths
             },
+            DataLakeGoldTargets: {
+                s3Targets: s3DataLakeGoldPaths
+            },
             GlueScriptArguments: props.GlueScriptArguments,
+            GlueScriptPathGold: props.GlueScriptPathGold,
+            GlueScriptArgumentsGold: props.GlueScriptArgumentsGold,
             WorkflowCronScheduleExpression: props.WorkflowCronScheduleExpression
         });
 

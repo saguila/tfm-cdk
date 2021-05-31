@@ -4,7 +4,9 @@ import {Bucket, IBucket} from "@aws-cdk/aws-s3";
 import {CfnParameter, Construct, Stack} from "@aws-cdk/core";
 
 export interface ContextDatasetProps extends DataSetStackProps {
-    readonly datasetName: string;
+    readonly landingDatabaseName: string;
+    readonly staggingDatabaseName: string;
+    readonly goldDatabaseName: string;
 }
 
 export class KaggleCycleShareDataset extends DataSetStack {
@@ -17,22 +19,22 @@ export class KaggleCycleShareDataset extends DataSetStack {
         default:"",
         description: "S3 Bucket ingest destination."});
 
-    const glueDatabaseDestination = new CfnParameter(this, "glueDatabaseDestination", {
-        type: "String",
-        default:"",
-        description: "Glue Database Name Destination"});
+        const staggingDatabaseName = props?.staggingDatabaseName;
 
-        const datasetName = props?.datasetName;
+        const landingDatabaseName = props?.landingDatabaseName;
 
-        this.Enrollments.push(new S3DatasetRegister(this, `${datasetName}Enrollment`, {
-            DataSetName: datasetName,
-            databaseDestination: glueDatabaseDestination.valueAsString,
+        const goldDatabaseName = props?.goldDatabaseName;
+
+        this.Enrollments.push(new S3DatasetRegister(this, `${landingDatabaseName}Enrollment`, {
+            DataSetName: landingDatabaseName,
+            databaseDestination: staggingDatabaseName,
+            DatabaseGold: goldDatabaseName,
             sourceBucket: Bucket.fromBucketName(this,'datalakeBucket', s3BucketOuput.valueAsString),
             MaxDPUs: 2,
             sourceBucketDataPrefixes: [
-                `/${datasetName}/station/`,
-                `/${datasetName}/trip/`,
-                `/${datasetName}/weather/`,
+                `/${landingDatabaseName}/station/`,
+                `/${landingDatabaseName}/trip/`,
+                `/${landingDatabaseName}/weather/`,
             ],
             dataLakeBucket: props.datalake.datalakeBucket,
             GlueScriptPath: "lib/datalake/datasets/glue-scripts/raw_to_stagging.py",
@@ -42,9 +44,20 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--enable-metrics": "",
                 "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
                 "--DL_REGION": Stack.of(this).region,
-                "--DL_PREFIX": `/${glueDatabaseDestination.valueAsString}/`,
-                "--GLUE_SRC_DATABASE": datasetName
-            }
+                "--DL_PREFIX": `/${staggingDatabaseName}/`,
+                "--GLUE_SRC_DATABASE": landingDatabaseName
+            },
+            GlueScriptPathGold: "lib/datalake/datasets/glue-scripts/stagging_to_gold.py",
+            GlueScriptArgumentsGold: {
+                "--job-language": "python",
+                "--job-bookmark-option": "job-bookmark-disable",
+                "--enable-metrics": "",
+                "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
+                "--DL_REGION": Stack.of(this).region,
+                "--DL_PREFIX": `/${staggingDatabaseName}/`,
+                "--GLUE_SRC_DATABASE": landingDatabaseName,
+                "--additional-python-modules": "spark-nlp==2.6.2"
+            },
         }));
     }
 }

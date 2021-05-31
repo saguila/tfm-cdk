@@ -19,7 +19,9 @@ new IngestStackFargate(app,'tfm-ingest-fargate-stack',{
 });
 
 const kaggleDatasetStack = new KaggleCycleShareDataset(app,'kaggle-datalake-register-stack',{
-    datasetName: app.node.tryGetContext('datasetName'),
+    landingDatabaseName: app.node.tryGetContext('landingDatabaseName'),
+    staggingDatabaseName: app.node.tryGetContext('staggingDatabaseName'),
+    goldDatabaseName: app.node.tryGetContext('goldDatabaseName'),
     datalake: datalakeStack
 });
 
