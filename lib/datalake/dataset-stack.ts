@@ -50,7 +50,6 @@ export class DataSetStack extends cdk.Stack {
         for(let enrollment of this.Enrollments){
             enrollment.grantTableWithColumnPermissions(principal, permissionGrant);
         }
-
     }
 
     public grantIamRead(principal: iam.IPrincipal){

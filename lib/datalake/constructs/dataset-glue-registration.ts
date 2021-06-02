@@ -344,6 +344,8 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
             type: "CONDITIONAL"
         });
 
+
+        /* Set dependencies for wait the workflow resource creation used in steps definition */
         this.StartTrigger.node.addDependency(this.Workflow);
         this.SrcCrawlerCompleteTrigger.node.addDependency(this.Workflow);
         this.ETLCompleteTrigger.node.addDependency(this.Workflow);

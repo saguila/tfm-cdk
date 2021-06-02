@@ -37,7 +37,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 `/${landingDatabaseName}/weather/`,
             ],
             dataLakeBucket: props.datalake.datalakeBucket,
-            GlueScriptPath: "lib/datalake/datasets/glue-scripts/raw_to_stagging.py",
+            GlueScriptPath: "lib/datalake/datasets/glue-scripts/landing_to_stagging.py",
             GlueScriptArguments: {
                 "--job-language": "python",
                 "--job-bookmark-option": "job-bookmark-disable",
@@ -54,9 +54,10 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--enable-metrics": "",
                 "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
                 "--DL_REGION": Stack.of(this).region,
-                "--DL_PREFIX": `/${staggingDatabaseName}/`,
-                "--GLUE_SRC_DATABASE": landingDatabaseName,
-                "--additional-python-modules": "spark-nlp==2.6.2"
+                "--DL_PREFIX": `/${goldDatabaseName}/`,
+                "--GLUE_SRC_DATABASE": goldDatabaseName,
+                "--ANONIMIZATION_CONF": "{\"anonimization\":\"mondrian-k-anonimization\", \"datasets\": [{\"table\":\"trip\", \"feature_columns\":[\"usertype\",\"gender\",\"birthyear\"],\"categorical\":[\"usertype\",\"gender\"] ,\"k_value\":\"2\", \"sensitive_column\": \"trip_id\"}] }",
+                                "--additional-python-modules": "spark_privacy_preserver==0.3.1,pyarrow==4.0.1"
             },
         }));
     }
