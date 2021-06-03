@@ -47,7 +47,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--DL_PREFIX": `/${staggingDatabaseName}/`,
                 "--GLUE_SRC_DATABASE": landingDatabaseName
             },
-            GlueScriptPathGold: "lib/datalake/datasets/glue-scripts/stagging_to_gold.py",
+            GlueScriptPathGold: "lib/datalake/datasets/glue-scripts/staging_to_gold.py",
             GlueScriptArgumentsGold: {
                 "--job-language": "python",
                 "--job-bookmark-option": "job-bookmark-disable",
@@ -55,9 +55,10 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
                 "--DL_REGION": Stack.of(this).region,
                 "--DL_PREFIX": `/${goldDatabaseName}/`,
-                "--GLUE_SRC_DATABASE": goldDatabaseName,
+                "--GLUE_SRC_DATABASE": staggingDatabaseName,
                 "--ANONIMIZATION_CONF": "{\"anonimization\":\"mondrian-k-anonimization\", \"datasets\": [{\"table\":\"trip\", \"feature_columns\":[\"usertype\",\"gender\",\"birthyear\"],\"categorical\":[\"usertype\",\"gender\"] ,\"k_value\":\"2\", \"sensitive_column\": \"trip_id\"}] }",
-                                "--additional-python-modules": "spark_privacy_preserver==0.3.1,pyarrow==4.0.1"
+                "--additional-python-modules": "spark_privacy_preserver==0.3.1",
+                "--python-modules-installer-option": "--upgrade"
             },
         }));
     }

@@ -120,9 +120,9 @@ export class S3DatasetRegister extends DataLakeEnrollment {
 
         this.DataEnrollment = new DatasetGlueRegistration(this, `${props.DataSetName}-s3Enrollment`, {
             dataLakeBucket: props.dataLakeBucket,
-            DatabaseGold: props.DatabaseGold,
-            databaseDestination: props.databaseDestination,
-            dataSetName: dataSetName,
+            GoldDatabaseName: props.DatabaseGold,
+            StagingDatabaseName: props.databaseDestination,
+            LandingDatabaseName: dataSetName,
             SourceAccessPolicy: s3AccessPolicy,
             SourceTargets: {
                 s3Targets: s3TargetPaths,

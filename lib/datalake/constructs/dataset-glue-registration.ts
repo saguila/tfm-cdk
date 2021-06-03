@@ -9,9 +9,9 @@ import s3assets = require('@aws-cdk/aws-s3-assets');
 
 export interface DataSetEnrollmentProps extends cdk.StackProps {
     dataLakeBucket: s3.Bucket;
-    dataSetName: string;
-    databaseDestination: string;
-    DatabaseGold: string;
+    LandingDatabaseName: string;
+    StagingDatabaseName: string;
+    GoldDatabaseName: string;
     SourceConnectionInput?: glue.CfnConnection.ConnectionInputProperty;
     SourceTargets: glue.CfnCrawler.TargetsProperty;
     DataLakeTargets: glue.CfnCrawler.TargetsProperty;
@@ -30,17 +30,18 @@ export interface DataSetEnrollmentProps extends cdk.StackProps {
  */
 export class DatasetGlueRegistration extends cdk.Construct {
 
+    public readonly LandingGlueDatabase: glue.Database;
+    public readonly StagingGlueDatabase: glue.Database;
+    public readonly GoldGlueDatabase: glue.Database;
+
     public readonly Workflow: DataLakeEnrollmentWorkflow;
     public readonly SrcCrawlerCompleteTrigger: glue.CfnTrigger;
     public readonly ETLCompleteTrigger: glue.CfnTrigger;
     public readonly SourceConnection?: glue.CfnConnection;
     public readonly DataLakeConnection: glue.CfnConnection;
-    public readonly LandingDatabase: string;
+
     public readonly DataSetGlueRole: iam.Role;
-    public readonly Dataset_Source: glue.Database;
-    public readonly Dataset_Datalake: glue.Database;
-    public readonly GoldGlueDatabase: glue.Database;
-    public readonly StaggingDatabase: string;
+
     public readonly DataLakeBucketName: string;
     public readonly DataLakePrefix: string;
     public readonly DataLakeTargets: glue.CfnCrawler.TargetsProperty;
@@ -48,10 +49,7 @@ export class DatasetGlueRegistration extends cdk.Construct {
 
 
     /* Creates a Glue Crawler bassed in */
-    private setupCrawler(targetGlueDatabase: glue.Database, targets: glue.CfnCrawler.TargetsProperty, crawlerName :string) {//isSourceCrawler: boolean){
-
-        //TODO: Fix this.DataSetName : this.DatabaseDestination;
-        //const sourceCrawler  = isSourceCrawler ? "raw" : "stagging";
+    private setupCrawler(targetGlueDatabase: glue.Database, targets: glue.CfnCrawler.TargetsProperty, crawlerName :string) {
 
         return new glue.CfnCrawler(this,  `${crawlerName}-crawler`,{
             name: `${crawlerName}_crawler`,
@@ -75,22 +73,20 @@ export class DatasetGlueRegistration extends cdk.Construct {
         this.DataLakeBucketName	= props.GlueScriptArguments['--DL_BUCKET'];
 
         this.DataLakePrefix = props.GlueScriptArguments['--DL_PREFIX'];
-        this.StaggingDatabase = props.databaseDestination;
-        this.LandingDatabase = props.dataSetName;
 
-        this.Dataset_Source = new glue.Database(this, `${props.dataSetName}_origin`, {
-            databaseName: props.dataSetName,
-            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.dataSetName}/`
+        this.LandingGlueDatabase = new glue.Database(this, `${props.LandingDatabaseName}_origin`, {
+            databaseName: props.LandingDatabaseName,
+            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.LandingDatabaseName}/`
         });
 
-        this.Dataset_Datalake = new glue.Database(this, `${props.dataSetName}_destination`, {
-            databaseName: props.databaseDestination,
-            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/`
+        this.StagingGlueDatabase = new glue.Database(this, `${props.LandingDatabaseName}_destination`, {
+            databaseName: props.StagingDatabaseName,
+            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.StagingDatabaseName}/`
         });
 
-        this.GoldGlueDatabase = new glue.Database(this, `${props.dataSetName}_${props.DatabaseGold}`, {
-            databaseName: props.DatabaseGold,
-            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.DatabaseGold}/`
+        this.GoldGlueDatabase = new glue.Database(this, `${props.LandingDatabaseName}_${props.GoldDatabaseName}`, {
+            databaseName: props.GoldDatabaseName,
+            locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.GoldDatabaseName}/`
         });
 
 
@@ -98,8 +94,8 @@ export class DatasetGlueRegistration extends cdk.Construct {
 
 
         if(props.SourceConnectionInput){
-            this.SourceConnection = new glue.CfnConnection(this, `${props.dataSetName}-src-deonnection`, {
-                catalogId: this.Dataset_Source.catalogId,
+            this.SourceConnection = new glue.CfnConnection(this, `${props.LandingDatabaseName}-src-deonnection`, {
+                catalogId: this.LandingGlueDatabase.catalogId,
                 connectionInput: props.SourceConnectionInput
             });
             if(props.SourceConnectionInput.name){
@@ -108,7 +104,7 @@ export class DatasetGlueRegistration extends cdk.Construct {
         }
 
 
-        this.DataSetGlueRole = new iam.Role(this, `${props.dataSetName}-GlueRole`, {
+        this.DataSetGlueRole = new iam.Role(this, `${props.LandingDatabaseName}-GlueRole`, {
             assumedBy: new iam.ServicePrincipal('glue.amazonaws.com')
         });
 
@@ -121,15 +117,15 @@ export class DatasetGlueRegistration extends cdk.Construct {
             props.SourceAccessPolicy.attachToRole(this.DataSetGlueRole);
         }
 
-        const landingCrawler = this.setupCrawler(this.Dataset_Source, props.SourceTargets, props.dataSetName);
+        const landingCrawler = this.setupCrawler(this.LandingGlueDatabase, props.SourceTargets, props.LandingDatabaseName);
 
-        const glueScript = new s3assets.Asset(this, `${props.dataSetName}-GlueScript`, {
+        const glueScript = new s3assets.Asset(this, `${props.LandingDatabaseName}-GlueScript`, {
             path: props.GlueScriptPath
         });
 
         glueScript.grantRead(this.DataSetGlueRole);
 
-        const glueScriptGold = new s3assets.Asset(this, `${props.dataSetName}-Glue-Script-Gold`, {
+        const glueScriptGold = new s3assets.Asset(this, `${props.LandingDatabaseName}-Glue-Script-Gold`, {
             path: props.GlueScriptPathGold
         });
 
@@ -140,7 +136,7 @@ export class DatasetGlueRegistration extends cdk.Construct {
             executionProperty: {
                 maxConcurrentRuns: 1
             },
-            name: `${props.dataSetName}_to_${props.databaseDestination}_etl`, //TODO:Change name
+            name: `${props.LandingDatabaseName}_to_${props.StagingDatabaseName}_etl`,
             timeout: 2880,
             glueVersion: "2.0",
             maxCapacity: props.MaxDPUs,
@@ -159,21 +155,21 @@ export class DatasetGlueRegistration extends cdk.Construct {
             })
         };
 
-        const landingToStaggingJob = new glue.CfnJob(this, `${props.dataSetName}-EtlJob`, jobParams );
+        const landingToStagingJob = new glue.CfnJob(this, `${props.LandingDatabaseName}-EtlJob`, jobParams );
 
-        const staggingGlueCrawler = this.setupCrawler(this.Dataset_Datalake, this.DataLakeTargets, this.StaggingDatabase);
+        const stagingGlueCrawler = this.setupCrawler(this.StagingGlueDatabase, this.DataLakeTargets, props.StagingDatabaseName);
 
         const jobParams2 = {
             executionProperty: {
                 maxConcurrentRuns: 1
             },
-            name: "stagging_to_gold_etl",
+            name: "staging_to_gold_etl",
             timeout: 2880,
             glueVersion: "2.0",
             maxCapacity: props.MaxDPUs,
             command: {
                 scriptLocation: `s3://${glueScriptGold.s3BucketName}/${glueScriptGold.s3ObjectKey}`,
-                name: "glue-etl-stagging-to-gold",
+                name: "glueetl",
                 pythonVersion: "3"
             },
             role: this.DataSetGlueRole.roleArn,
@@ -186,15 +182,15 @@ export class DatasetGlueRegistration extends cdk.Construct {
             })
         };
 
-        const staggingToGoldJob = new glue.CfnJob(this, `${props.dataSetName}-EtlJob2`, jobParams2 );
+        const staggingToGoldJob = new glue.CfnJob(this, `${props.LandingDatabaseName}-EtlJob2`, jobParams2 );
 
-        const goldGlueCrawler = this.setupCrawler(this.GoldGlueDatabase, this.DataLakeGoldTargets, props.DatabaseGold);
+        const goldGlueCrawler = this.setupCrawler(this.GoldGlueDatabase, this.DataLakeGoldTargets, props.GoldDatabaseName);
 
-        const datalakeEnrollmentWorkflow = new DataLakeEnrollmentWorkflow(this,`${props.dataSetName}DataLakeWorkflow`,{
-            WorkFlowName: `${props.dataSetName}_DataLakeEnrollmentWorkflow`,
+        const datalakeEnrollmentWorkflow = new DataLakeEnrollmentWorkflow(this,`${props.LandingDatabaseName}DataLakeWorkflow`,{
+            WorkFlowName: `${props.LandingDatabaseName}_DataLakeEnrollmentWorkflow`,
             LandingCrawler: landingCrawler,
-            LandingToStaggingGlueJob: landingToStaggingJob,
-            StaggingCrawler: staggingGlueCrawler,
+            LandingToStaggingGlueJob: landingToStagingJob,
+            StaggingCrawler: stagingGlueCrawler,
             StaggingToGoldGlueJob: staggingToGoldJob,
             GoldCrawler: goldGlueCrawler,
             WorkflowCronScheduleExpression: props.WorkflowCronScheduleExpression
@@ -217,8 +213,8 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
     public StartTrigger: glue.CfnTrigger;
     public readonly SrcCrawlerCompleteTrigger: glue.CfnTrigger;
     public readonly ETLCompleteTrigger: glue.CfnTrigger;
-    public readonly StaggingCrawlerCompleteTrigger: glue.CfnTrigger;
-    public readonly StaggingToGoldEtlCompleteTrigger: glue.CfnTrigger;
+    public readonly StagingCrawlerCompleteTrigger: glue.CfnTrigger;
+    public readonly StagingToGoldEtlCompleteTrigger: glue.CfnTrigger;
     public readonly Workflow: glue.CfnWorkflow;
 
     constructor(scope: cdk.Construct, id: string, props: DataLakeEnrollmentWorkflowProps) {
@@ -277,7 +273,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
             startOnCreation: true
         });
 
-        /* Crawler for Stagging new files */
+        /* Crawler for Staging new files */
         this.ETLCompleteTrigger = new glue.CfnTrigger(this,"etlCompleteTrigger",{
             predicate: {
                 conditions: [
@@ -300,7 +296,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         });
 
         /* ETL Stagging to Gold */
-        this.StaggingCrawlerCompleteTrigger = new glue.CfnTrigger(this,"staggingCrawlerCompleteTrigger",{
+        this.StagingCrawlerCompleteTrigger = new glue.CfnTrigger(this,"staggingCrawlerCompleteTrigger",{
             predicate: {
                 conditions: [
                     {
@@ -323,7 +319,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         });
 
         /* Crawler for Gold new files */
-        this.StaggingToGoldEtlCompleteTrigger = new glue.CfnTrigger(this,"staggingToGoldCompleteTrigger",{
+        this.StagingToGoldEtlCompleteTrigger = new glue.CfnTrigger(this,"staggingToGoldCompleteTrigger",{
             predicate: {
                 conditions: [
                     {
@@ -349,8 +345,8 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         this.StartTrigger.node.addDependency(this.Workflow);
         this.SrcCrawlerCompleteTrigger.node.addDependency(this.Workflow);
         this.ETLCompleteTrigger.node.addDependency(this.Workflow);
-        this.StaggingCrawlerCompleteTrigger.node.addDependency(this.Workflow);
-        this.StaggingToGoldEtlCompleteTrigger.node.addDependency(this.Workflow);
+        this.StagingCrawlerCompleteTrigger.node.addDependency(this.Workflow);
+        this.StagingToGoldEtlCompleteTrigger.node.addDependency(this.Workflow);
 
 
         const activateTriggerRole = new iam.Role(this, 'activateTriggerRole', {
@@ -398,6 +394,5 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 triggerId: this.ETLCompleteTrigger.name
             }
         });
-
     }
 }

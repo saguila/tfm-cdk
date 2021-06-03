@@ -13,7 +13,6 @@ export class DataLakeEnrollment extends cdk.Construct {
     private CoarseIamPolciesApplied: boolean;
     private WorkflowCronScheduleExpression?: string;
 
-
     constructor(scope: cdk.Construct, id: string, props: DataLakeEnrollment.DataLakeEnrollmentProps) {
         super(scope, id);
 
@@ -26,11 +25,12 @@ export class DataLakeEnrollment extends cdk.Construct {
     grantGlueRoleLakeFormationPermissions(DataSetGlueRole: iam.Role, DataSetName: string) {
 
         //TODO: Permissions for database destination
+        //Landing
         this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
             Grantable: true,
             GrantResourcePrefix: `${DataSetName}locationGrant`,
             Location: this.DataEnrollment.DataLakeBucketName,
-            LocationPrefix: `/${this.DataEnrollment.LandingDatabase}/`
+            LocationPrefix: `/${this.DataEnrollment}/`
             //LocationPrefix: this.DataEnrollment.DataLakePrefix
         });
 
@@ -52,8 +52,9 @@ export class DataLakeEnrollment extends cdk.Construct {
             ],
             "Resource": [
                 `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}`,
-                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.LandingDatabase}/*`, //Added
-                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.StaggingDatabase}/*` //Changed
+                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.LandingGlueDatabase.databaseName}/*`, //(R)Added
+                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.StagingGlueDatabase.databaseName}/*`, //(R)Changed
+                `arn:aws:s3:::${this.DataEnrollment.DataLakeBucketName}/${this.DataEnrollment.GoldGlueDatabase.databaseName}/*`//(R)Changed
             ],
             "Effect": "Allow"
         };
@@ -69,9 +70,12 @@ export class DataLakeEnrollment extends cdk.Construct {
             "Resource": [
                 `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:catalog`,
                 `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:database/default`,
-                this.DataEnrollment.Dataset_Datalake.databaseArn,
-                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.Dataset_Datalake.databaseName}/*`,
-                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.StaggingDatabase}/*` //added
+                this.DataEnrollment.LandingGlueDatabase.databaseArn,
+                this.DataEnrollment.StagingGlueDatabase.databaseArn,
+                this.DataEnrollment.GoldGlueDatabase.databaseArn,
+                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.LandingGlueDatabase.databaseName}/*`,
+                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.StagingGlueDatabase.databaseName}/*`, //(R)added
+                `arn:aws:glue:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:table/${this.DataEnrollment.GoldGlueDatabase.databaseName}/*` //(R)added
             ],
             "Effect": "Allow"
         };
@@ -243,7 +247,7 @@ export class DataLakeEnrollment extends cdk.Construct {
     /* Attach S3 location and permissions to Lake Formation */
     public grantDataLocationPermissions(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DataLocationGrant , sourceLakeFormationLocation?: lakeformation.CfnResource ){
 
-        var grantIdPrefix = ""
+        var grantIdPrefix = "";
         var dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
             dataLakePrincipalIdentifier: ""
         };
@@ -302,14 +306,14 @@ export class DataLakeEnrollment extends cdk.Construct {
 
         var  tableWithColumnsProperty : lakeformation.CfnPermissions.TableWithColumnsResourceProperty = {
             columnNames: permissionGrant.columns,
-            databaseName: this.DataEnrollment.Dataset_Datalake.databaseName,
+            databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
             name: permissionGrant.table
         };
 
         if(permissionGrant.wildCardFilter === null){
             tableWithColumnsProperty = {
                 columnNames: permissionGrant.columns,
-                databaseName: this.DataEnrollment.Dataset_Datalake.databaseName,
+                databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
                 name: permissionGrant.table
             };
         }else{
@@ -317,14 +321,14 @@ export class DataLakeEnrollment extends cdk.Construct {
             if(permissionGrant.wildCardFilter == DataLakeEnrollment.TableWithColumnFilter.Include){
                 tableWithColumnsProperty = {
                     columnNames: permissionGrant.columns,
-                    databaseName: this.DataEnrollment.Dataset_Datalake.databaseName,
+                    databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
                     name: permissionGrant.table
                 };
             }
 
             if(permissionGrant.wildCardFilter == DataLakeEnrollment.TableWithColumnFilter.Exclude){
                 tableWithColumnsProperty = {
-                    databaseName: this.DataEnrollment.Dataset_Datalake.databaseName,
+                    databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
                     name: permissionGrant.table,
                     columnWildcard: {
                         excludedColumnNames: permissionGrant.columns
@@ -351,7 +355,7 @@ export class DataLakeEnrollment extends cdk.Construct {
             dataLakePrincipalIdentifier: ""
         };
         var databaseResourceProperty : lakeformation.CfnPermissions.ResourceProperty = {
-            databaseResource: {name: this.DataEnrollment.Dataset_Datalake.databaseName}
+            databaseResource: {name: this.DataEnrollment.StagingGlueDatabase.databaseName}
         };
 
         const resolvedPrincipalType = this.determinePrincipalType(principal);
@@ -379,7 +383,7 @@ export class DataLakeEnrollment extends cdk.Construct {
 
             databaseResourceProperty = {
                 //dataLocationResource: {resourceArn: this.DataEnrollment.DataLakeBucketName},
-                databaseResource: {name: this.DataEnrollment.Dataset_Source.databaseName}
+                databaseResource: {name: this.DataEnrollment.LandingGlueDatabase.databaseName}
             };
 
             this.createLakeFormationPermission(`${grantIdPrefix}-databaseSrcGrant`,dataLakePrincipal , databaseResourceProperty, permissionGrant.DatabasePermissions, permissionGrant.GrantableDatabasePermissions)
@@ -398,7 +402,7 @@ export class DataLakeEnrollment extends cdk.Construct {
             var tableResourceProperty : lakeformation.CfnPermissions.ResourceProperty = {
                 tableResource:{
                     name: table,
-                    databaseName: this.DataEnrollment.Dataset_Datalake.databaseName
+                    databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName
                 }
             };
             this.createLakeFormationPermission(`${coreGrant.grantIdPrefix}-${table}-databaseTableGrant`,coreGrant.dataLakePrincipal , tableResourceProperty, permissionGrant.TablePermissions, permissionGrant.GrantableTablePermissions)
@@ -478,7 +482,7 @@ export class DataLakeEnrollment extends cdk.Construct {
         };
         var databaseResourceProperty : lakeformation.CfnPermissions.ResourceProperty = {
             //dataLocationResource: {resourceArn: this.DataEnrollment.DataLakeBucketName},
-            databaseResource: {name: this.DataEnrollment.Dataset_Datalake.databaseName}
+            databaseResource: {name: this.DataEnrollment.StagingGlueDatabase.databaseName}
         };
 
         const resolvedPrincipalType = this.determinePrincipalType(principal);
