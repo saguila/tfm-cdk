@@ -3,6 +3,7 @@ import logging
 import cfnresponse
 import boto3
 
+#This script create the workgroup for athena
 client = boto3.client('athena')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)

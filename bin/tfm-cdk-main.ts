@@ -8,10 +8,9 @@ import {KaggleCycleShareDataset} from "../lib/datalake/datasets/kaggle-cycle-sha
 import {LakeFormationStack} from "../lib/lake-formation-stack";
 import {UsersLakeFormationStack} from "../lib/users-lake-formation-stack";
 
-
 const app = new cdk.App();
 
-const datalakeStack = new LakeFormationStack(app, 'lake-formation-stack', {});
+const dataLakeStack = new LakeFormationStack(app, 'lake-formation-stack', {});
 
 new IngestStackFargate(app,'tfm-ingest-fargate-stack',{
     kaggleUser: app.node.tryGetContext('kaggleUser'),
@@ -19,15 +18,17 @@ new IngestStackFargate(app,'tfm-ingest-fargate-stack',{
 });
 
 const kaggleDatasetStack = new KaggleCycleShareDataset(app,'kaggle-datalake-register-stack',{
+    dataLakeBucketName :app.node.tryGetContext('dataLakeBucketName'),
+    dataSetName: app.node.tryGetContext('dataSetName'),
     landingDatabaseName: app.node.tryGetContext('landingDatabaseName'),
-    staggingDatabaseName: app.node.tryGetContext('staggingDatabaseName'),
+    stagingDatabaseName: app.node.tryGetContext('stagingDatabaseName'),
     goldDatabaseName: app.node.tryGetContext('goldDatabaseName'),
-    datalake: datalakeStack
+    dataLake: dataLakeStack
 });
 
 const usersLakeFormation = new UsersLakeFormationStack(app,'users-lake-formation-stack',{
     dataset: kaggleDatasetStack,
-    initPasswd: app.node.tryGetContext('initPasswd')
+    awsAccount: app.node.tryGetContext('awsAccount')
 });
 
 

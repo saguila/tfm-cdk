@@ -18,7 +18,7 @@ import lakeformation = require("@aws-cdk/aws-lakeformation");
 import lambda = require("@aws-cdk/aws-lambda");
 import fs = require("fs");
 
-export interface DataLakeStackProps extends cdk.StackProps {
+export interface DataLakeStackContext extends cdk.StackProps {
     starterLakeFormationAdminPrincipalArn: string;
 }
 
@@ -29,42 +29,13 @@ export interface DataLakeStackProps extends cdk.StackProps {
  */
 
 export class LakeFormationStack extends cdk.Stack {
-    public readonly datalakeBucket: s3.Bucket;
+    public readonly dataLakeBucket: s3.Bucket;
     public readonly athenaResultsBucket: s3.Bucket;
-    public readonly AthenaResultsBucketAccessPolicy: ManagedPolicy;
-    public readonly LakeFormationResource: lakeformation.CfnResource;
+    public readonly athenaResultsBucketAccessPolicy: ManagedPolicy;
+    public readonly lakeFormationResource: lakeformation.CfnResource;
     public readonly PrimaryAthenaWorkgroup: athena.CfnWorkGroup;
     private readonly bucketRole: Role;
     private readonly starterAdminArn: string;
-
-    public grantAthenaResultsBucketPermission(principal: IPrincipal) {
-        if (principal instanceof Role) {
-            this.AthenaResultsBucketAccessPolicy.attachToRole(principal);
-            return;
-        }
-
-        if (principal instanceof User) {
-            this.AthenaResultsBucketAccessPolicy.attachToUser(principal);
-            return;
-        }
-
-        if (principal instanceof cdk.Resource) {
-            try {
-                const user = principal as User;
-                this.AthenaResultsBucketAccessPolicy.attachToUser(user);
-                return;
-            } catch (exception) {
-                console.log(exception);
-            }
-            try {
-                const role = principal as Role;
-                this.AthenaResultsBucketAccessPolicy.attachToRole(role);
-                return;
-            } catch (exception) {
-                console.log(exception);
-            }
-        }
-    }
 
     constructor(scope: cdk.Construct, id: string, props: StackProps) {
 
@@ -80,17 +51,19 @@ export class LakeFormationStack extends cdk.Stack {
             default:"",
             description: "S3 Bucket ingest destination."});
 
-        // Creates the bucket for datalake
-        this.datalakeBucket = new s3.Bucket(this, 'datalakeBucket', {
+        /* Creates the main bucket of data lake*/
+        this.dataLakeBucket = new s3.Bucket(this, 'datalakeBucket', {
             bucketName: s3BucketName.valueAsString,
             encryption: BucketEncryption.S3_MANAGED
         });
 
+        /* Creates the athena results bucket for queries */
         this.athenaResultsBucket = new s3.Bucket(this, "athenaResultsBucket",{
             bucketName: `${s3BucketName.valueAsString}-athena-results`,
             encryption: BucketEncryption.S3_MANAGED
         });
 
+        /* Stabilise the first admin identity for AWS Lake Formation */
         new lakeformation.CfnDataLakeSettings(this, "starterAdminPermission", {
             admins: [
                 {
@@ -99,6 +72,7 @@ export class LakeFormationStack extends cdk.Stack {
             ],
         });
 
+        /* String with policy for access to athena results s3 bucket */
         const coarseAthenaResultBucketAccess = {
             Version: "2012-10-17",
             Statement: [
@@ -113,11 +87,13 @@ export class LakeFormationStack extends cdk.Stack {
             ],
         };
 
+        /* Creates a policy document from previous string policy */
         const coarseAthenaResultBucketAccessPolicyDoc = PolicyDocument.fromJson(
             coarseAthenaResultBucketAccess
         );
 
-        this.AthenaResultsBucketAccessPolicy = new ManagedPolicy(
+        /* Managed policy for access to athena results s3 bucket */
+        this.athenaResultsBucketAccessPolicy = new ManagedPolicy(
             this,
             `athenaResultBucketAccessPolicy`,
             {
@@ -126,24 +102,28 @@ export class LakeFormationStack extends cdk.Stack {
             }
         );
 
+        /* Creates the bucket role needed for Lake Formation to access in the data lake bucket */
         this.bucketRole = new Role(this, "datalakebucketRole", {
             assumedBy: new ServicePrincipal("lakeformation.amazonaws.com"),
             description: "Role used by lakeformation to access resources.",
             roleName: "LakeFormationServiceAccessRole",
         });
 
-        this.datalakeBucket.grantReadWrite(this.bucketRole);
+        /* Gives permissions to Lake Formation Role for access to data lake bucket */
+        this.dataLakeBucket.grantReadWrite(this.bucketRole);
 
-        this.LakeFormationResource = new lakeformation.CfnResource(
+        /* Creates the Lake Formation service using the role configured previously & the data lake bucket */
+        this.lakeFormationResource = new lakeformation.CfnResource(
             this,
             "dataLakeBucketLakeFormationResource",
             {
-                resourceArn: this.datalakeBucket.bucketArn,
+                resourceArn: this.dataLakeBucket.bucketArn,
                 roleArn: this.bucketRole.roleArn,
                 useServiceLinkedRole: true,
             }
         );
 
+        /* Configure the workgroup needed for athena queries*/
         const workGroupConfigCustResourceRole = new Role(
             this,
             "workGroupConfigCustResourceRole",
@@ -198,5 +178,39 @@ export class LakeFormationStack extends cdk.Stack {
                 },
             }
         );
+    }
+
+
+    /***
+     * Given a IAM principal giver permissions to access into a athena results bucket
+     * @param principal IAM identity
+     */
+    public grantAthenaResultsBucketPermission(principal: IPrincipal) {
+        if (principal instanceof Role) {
+            this.athenaResultsBucketAccessPolicy.attachToRole(principal);
+            return;
+        }
+
+        if (principal instanceof User) {
+            this.athenaResultsBucketAccessPolicy.attachToUser(principal);
+            return;
+        }
+
+        if (principal instanceof cdk.Resource) {
+            try {
+                const user = principal as User;
+                this.athenaResultsBucketAccessPolicy.attachToUser(user);
+                return;
+            } catch (exception) {
+                console.log(exception);
+            }
+            try {
+                const role = principal as Role;
+                this.athenaResultsBucketAccessPolicy.attachToRole(role);
+                return;
+            } catch (exception) {
+                console.log(exception);
+            }
+        }
     }
 }

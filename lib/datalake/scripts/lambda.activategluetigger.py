@@ -5,7 +5,7 @@ import logging as log
 import cfnresponse
 glue = boto3.client('glue')
 
-
+#This lambda activates the workflow launched by cloudwatch time based scheduler
 def main(event, context):
 
     physical_id = 'startTrigger'

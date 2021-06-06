@@ -11,7 +11,7 @@ export interface DataSetTemplateStackProps extends cdk.StackProps {
 }
 
 export interface DataSetStackProps extends cdk.StackProps {
-    datalake: LakeFormationStack;
+    dataLake: LakeFormationStack;
 }
 
 /**
@@ -19,14 +19,15 @@ export interface DataSetStackProps extends cdk.StackProps {
  */
 export class DataSetStack extends cdk.Stack {
 
+    /*Array with dataset configuration */
     public Enrollments: Array<DataLakeEnrollment> = [];
+    /* DataLake */
     public DataLake: LakeFormationStack;
 
     constructor(scope: cdk.Construct, id: string, props: DataSetStackProps) {
         super(scope, id, props);
-        this.DataLake = props.datalake;
+        this.DataLake = props.dataLake;
     }
-
 
     public grantDatabasePermissions( principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DatabasePermissionGrant){
         for(let enrollment of this.Enrollments){

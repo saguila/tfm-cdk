@@ -1,11 +1,11 @@
 import { Construct, Stack, StackProps, SecretValue } from "@aws-cdk/core";
-import { Effect, Group, ManagedPolicy, PolicyStatement, User } from "@aws-cdk/aws-iam";
+import {AccountPrincipal, Effect, Group, ManagedPolicy, PolicyStatement, Role, User} from "@aws-cdk/aws-iam";
 import {KaggleCycleShareDataset} from "./datalake/datasets/kaggle-cycle-share-dataset";
 import {DataLakeEnrollment} from "./datalake/constructs/data-lake-enrollment";
 
 export interface ContextUsersLakeFormationProps extends StackProps {
     dataset: KaggleCycleShareDataset
-    initPasswd: string;
+    awsAccount: string;
 }
 
 /*
@@ -17,7 +17,7 @@ export interface ContextUsersLakeFormationProps extends StackProps {
  */
 export class UsersLakeFormationStack extends Stack {
 
-    readonly admin: User;
+    readonly admin: Role;
     readonly scientist: User;
     readonly staff: User;
     readonly user: User;
@@ -27,12 +27,11 @@ export class UsersLakeFormationStack extends Stack {
     constructor(scope: Construct, id: string, props?: ContextUsersLakeFormationProps) {
         super(scope, id, props);
 
-        /*
-        this.admin = new iam.Role(this,'adminRole',{
+
+        this.admin = new Role(this,'adminRole',{
             description: "Administradores: que requieren el acceso completo a las tablas.",
-            assumedBy: new AccountPrincipal("")
+            assumedBy: new AccountPrincipal(props?.awsAccount)
         });
-        */
 
         /*        const permissionsS3 = new iam.ManagedPolicy(this,'permissionsS3Lake',
             {
@@ -73,7 +72,9 @@ export class UsersLakeFormationStack extends Stack {
             },
         );
 
-        this.group = new Group(this, 'lake-formation-tfm-group', {
+        this.admin.addManagedPolicy(permissionsGlue);
+
+/*        this.group = new Group(this, 'lake-formation-tfm-group', {
             groupName: 'datalake-group',
             managedPolicies: [
                 ManagedPolicy.fromAwsManagedPolicyName('AmazonAthenaFullAccess'),
@@ -109,24 +110,24 @@ export class UsersLakeFormationStack extends Stack {
         });
 
         this.analyst  = new User(this,'datalake-analyst',{
-            userName: 'datalake-analyst',
+                userName: 'datalake-analyst',
             groups: [this.group],
             password: SecretValue.plainText(props?.initPasswd || ""),
             permissionsBoundary: permissionsGlue
-        });
+        });*/
 
-        /*
+
         var exampleTableWithColumnsGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
-            table: "raw",
-            database: "dataset",
-            columns: ['molregno'],
+            table: "trip",
+            database: "staging",
+            columns: ['trip_id','bikeid'],
             DatabasePermissions: [],
             GrantableDatabasePermissions: [],
             TableColumnPermissions: [DataLakeEnrollment.TablePermission.Select],
             GrantableTableColumnPermissions: []
         };
 
-        props?.dataset.grantTableWithColumnPermissions(this.analyst, exampleTableWithColumnsGrant);
-         */
+        props?.dataset.grantTableWithColumnPermissions(this.admin, exampleTableWithColumnsGrant);
+
     }
 }

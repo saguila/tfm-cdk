@@ -11,9 +11,10 @@ import { DatasetGlueRegistration } from './dataset-glue-registration';
 export interface S3dataSetEnrollmentProps extends DataLakeEnrollment.DataLakeEnrollmentProps {
     sourceBucket: s3.IBucket;
     sourceBucketDataPrefixes: string[];
-    MaxDPUs: number;
-    databaseDestination: string;
-    DatabaseGold: string;
+    maxDPUs: number;
+    databaseLandingName: string;
+    databaseStagingName: string;
+    databaseGoldName: string;
 }
 
 /**
@@ -23,48 +24,17 @@ export class S3DatasetRegister extends DataLakeEnrollment {
 
     private readonly sourceBucket: s3.IBucket;
 
-    /**
-     * Gives permissions to a Glue IAM Role for work with dataset in the target Bucket
-     * @param DataSetGlueRole
-     * @param DataSetName
-     * @param sourceDataBucket
-     */
-    setupGlueRoleLakeFormationPermissions(DataSetGlueRole: iam.Role, DataSetName: string, sourceDataBucket: s3.IBucket) {
-        /* Attach Glue Role to use a S3 Bucket managed by Lake Formation */
-        const sourceLakeFormationLocation = new lakeformation.CfnResource(
-            this,
-            "sourceLakeFormationLocation",
-            {
-                resourceArn: sourceDataBucket.bucketArn,
-                roleArn: this.DataEnrollment.DataSetGlueRole.roleArn,
-                useServiceLinkedRole: true,
-            }
-        );
-
-        //TODO: Review it
-        //super.grantGlueRoleLakeFormationPermissions(DataSetGlueRole, DataSetName);
-
-        /* Add Lake Formation root Location s3 location & Glue permissions */
-        this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
-            Grantable: true,
-            GrantResourcePrefix: `${DataSetName}SourcelocationGrant`,
-            Location: sourceDataBucket.bucketName,
-            LocationPrefix: "/"
-        }, sourceLakeFormationLocation);
-
-    }
-
     constructor(scope: cdk.Construct, id: string, props: S3dataSetEnrollmentProps) {
         super(scope, id, props);
 
         /* The dataset name must be match with the root location in s3 */
-        const dataSetName = props.DataSetName;
+        const dataSetName = props.dataSetName;
 
         /* Access Policy with permissions list & get for attach to Glue Role (Crawlers)*/
         const s3AccessPolicy = new iam.Policy(this, 'dataSourceAccessPolicy');
 
         let s3TargetPaths = new Array<glue.CfnCrawler.S3TargetProperty>();
-        let s3DataLakePaths = new Array<glue.CfnCrawler.S3TargetProperty>();
+        let s3DataLakeStagingPaths = new Array<glue.CfnCrawler.S3TargetProperty>();
         let s3DataLakeGoldPaths = new Array<glue.CfnCrawler.S3TargetProperty>();
 
         /* Add permission for list the target bucket */
@@ -98,53 +68,85 @@ export class S3DatasetRegister extends DataLakeEnrollment {
             var tableFolderName = tableFolderName.toLowerCase().replace(/\//g,"_").replace(/-/g,"_");
             /* If has more child folders into input folder */
             if(props.sourceBucketDataPrefixes.length > 1){
-                /* Path for Stagging database Datasets */
-                s3DataLakePaths.push({
-                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/${tableFolderName}/`
+                /* Path for Staging database Datasets */
+                s3DataLakeStagingPaths.push({
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseStagingName}/${tableFolderName}/`
                 });
                 /* Path for Gold database Datasets */
                 s3DataLakeGoldPaths.push({
-                    path: `s3://${props.dataLakeBucket.bucketName}/${props.DatabaseGold}/${tableFolderName}/`
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseGoldName}/${tableFolderName}/`
                 });
             }else{
-                /* Paths for Stagging database Datasets */
-                s3DataLakePaths.push({
-                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseDestination}/`
+                /* Paths for Staging database Datasets */
+                s3DataLakeStagingPaths.push({
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseStagingName}/`
                 });
                 /* Paths for Gold database Datasets */
                 s3DataLakeGoldPaths.push({
-                    path: `s3://${props.dataLakeBucket.bucketName}/${props.DatabaseGold}/`
+                    path: `s3://${props.dataLakeBucket.bucketName}/${props.databaseGoldName}/`
                 });
             }
         }
 
-        this.DataEnrollment = new DatasetGlueRegistration(this, `${props.DataSetName}-s3Enrollment`, {
+        this.DataEnrollment = new DatasetGlueRegistration(this, `${props.dataSetName}-s3Enrollment`, {
+            dataSetName: props.dataSetName,
             dataLakeBucket: props.dataLakeBucket,
-            GoldDatabaseName: props.DatabaseGold,
-            StagingDatabaseName: props.databaseDestination,
-            LandingDatabaseName: dataSetName,
-            SourceAccessPolicy: s3AccessPolicy,
-            SourceTargets: {
+            goldDatabaseName: props.databaseGoldName,
+            stagingDatabaseName: props.databaseStagingName,
+            landingDatabaseName: props.databaseLandingName,
+            sourceAccessPolicy: s3AccessPolicy,
+            dataLakeLandingTargets: {
                 s3Targets: s3TargetPaths,
             },
-            MaxDPUs: props.MaxDPUs,
-            GlueScriptPath: props.GlueScriptPath,
-            DataLakeTargets: {
-                s3Targets: s3DataLakePaths
+            maxDPUs: props.maxDPUs,
+            glueStagingScriptPath: props.glueStagingScriptPath,
+            dataLakeStagingTargets: {
+                s3Targets: s3DataLakeStagingPaths
             },
-            DataLakeGoldTargets: {
+            dataLakeGoldTargets: {
                 s3Targets: s3DataLakeGoldPaths
             },
-            GlueScriptArguments: props.GlueScriptArguments,
-            GlueScriptPathGold: props.GlueScriptPathGold,
-            GlueScriptArgumentsGold: props.GlueScriptArgumentsGold,
-            WorkflowCronScheduleExpression: props.WorkflowCronScheduleExpression
+            glueStagingScriptArguments: props.glueStagingScriptArguments,
+            glueGoldScriptPath: props.glueGoldScriptPath,
+            glueGoldScriptArguments: props.glueGoldScriptArguments,
+            workflowCronScheduleExpression: props.workflowCronScheduleExpression
         });
 
         this.createCoarseIamPolicy();
 
-        this.setupGlueRoleLakeFormationPermissions(this.DataEnrollment.DataSetGlueRole, props.DataSetName, props.sourceBucket);
+        //this.setupGlueRoleLakeFormationPermissions(this.DataEnrollment.DataSetGlueRole, props.dataSetName, props.sourceBucket);
 
         this.grantCoarseIamRead(this.DataEnrollment.DataSetGlueRole);
+    }
+
+    /**
+     * Gives permissions to a Glue IAM Role for work with dataset in the target Bucket
+     * @param DataSetGlueRole
+     * @param DataSetName
+     * @param sourceDataBucket
+     */
+    setupGlueRoleLakeFormationPermissions(DataSetGlueRole: iam.Role, DataSetName: string, sourceDataBucket: s3.IBucket) {
+        /* Attach Glue Role to use a S3 Bucket managed by Lake Formation */
+        const sourceLakeFormationLocation = new lakeformation.CfnResource(
+            this,
+            "sourceLakeFormationLocation",
+            {
+                resourceArn: sourceDataBucket.bucketArn,
+                roleArn: this.DataEnrollment.DataSetGlueRole.roleArn,
+                useServiceLinkedRole: true,
+            }
+        );
+
+        //TODO: Review it
+        //super.grantGlueRoleLakeFormationPermissions(DataSetGlueRole, DataSetName);
+
+        /* Add Lake Formation root Location s3 location & Glue permissions */
+        this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
+            Grantable: true,
+            GrantResourcePrefix: `${DataSetName}SourcelocationGrant`,
+            Location: sourceDataBucket.bucketName,
+            LocationPrefix: "/"
+        }, sourceLakeFormationLocation);
+
     }
 }

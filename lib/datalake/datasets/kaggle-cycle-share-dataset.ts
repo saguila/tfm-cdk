@@ -1,11 +1,13 @@
 import { S3DatasetRegister } from '../constructs/s3-dataset-register';
 import { DataSetStack, DataSetStackProps} from '../dataset-stack';
-import {Bucket, IBucket} from "@aws-cdk/aws-s3";
-import {CfnParameter, Construct, Stack} from "@aws-cdk/core";
+import { Bucket, IBucket} from "@aws-cdk/aws-s3";
+import { Construct, Stack } from "@aws-cdk/core";
 
 export interface ContextDatasetProps extends DataSetStackProps {
+    readonly dataLakeBucketName: string;
+    readonly dataSetName: string;
     readonly landingDatabaseName: string;
-    readonly staggingDatabaseName: string;
+    readonly stagingDatabaseName: string;
     readonly goldDatabaseName: string;
 }
 
@@ -14,52 +16,49 @@ export class KaggleCycleShareDataset extends DataSetStack {
     constructor(scope: Construct, id: string, props: ContextDatasetProps) {
         super(scope, id, props);
 
-    const s3BucketOuput = new CfnParameter(this, "s3BucketOuput", {
-        type: "String",
-        default:"",
-        description: "S3 Bucket ingest destination."});
+    const dataLakeBucketName: string = props?.dataLakeBucketName;
+    const dataSetName : string = props?.dataSetName;
+    const landingDatabaseName : string = props?.landingDatabaseName;
+    const stagingDatabaseName : string = props?.stagingDatabaseName;
+    const goldDatabaseName : string = props?.goldDatabaseName;
+    const dataLakeBucket : IBucket = Bucket.fromBucketName(this,'dataLakeBucket', dataLakeBucketName);
 
-        const staggingDatabaseName = props?.staggingDatabaseName;
-
-        const landingDatabaseName = props?.landingDatabaseName;
-
-        const goldDatabaseName = props?.goldDatabaseName;
-
-        this.Enrollments.push(new S3DatasetRegister(this, `${landingDatabaseName}Enrollment`, {
-            DataSetName: landingDatabaseName,
-            databaseDestination: staggingDatabaseName,
-            DatabaseGold: goldDatabaseName,
-            sourceBucket: Bucket.fromBucketName(this,'datalakeBucket', s3BucketOuput.valueAsString),
-            MaxDPUs: 2,
+    this.Enrollments.push(new S3DatasetRegister(this, `${dataLakeBucketName}Enrollment`, {
+            dataSetName: dataSetName,
+            databaseLandingName: landingDatabaseName,
+            databaseStagingName: stagingDatabaseName,
+            databaseGoldName: goldDatabaseName,
+            sourceBucket: dataLakeBucket,
+            maxDPUs: 2,
             sourceBucketDataPrefixes: [
                 `/${landingDatabaseName}/station/`,
                 `/${landingDatabaseName}/trip/`,
                 `/${landingDatabaseName}/weather/`,
             ],
-            dataLakeBucket: props.datalake.datalakeBucket,
-            GlueScriptPath: "lib/datalake/datasets/glue-scripts/landing_to_stagging.py",
-            GlueScriptArguments: {
+            dataLakeBucket: props.dataLake.dataLakeBucket,
+            glueStagingScriptPath: "lib/datalake/datasets/glue-scripts/landing_to_stagging.py",
+            glueStagingScriptArguments: {
                 "--job-language": "python",
                 "--job-bookmark-option": "job-bookmark-disable",
                 "--enable-metrics": "",
-                "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
+                "--DL_BUCKET": props.dataLake.dataLakeBucket.bucketName,
                 "--DL_REGION": Stack.of(this).region,
-                "--DL_PREFIX": `/${staggingDatabaseName}/`,
+                "--DL_PREFIX": `/${stagingDatabaseName}/`,
                 "--GLUE_SRC_DATABASE": landingDatabaseName
             },
-            GlueScriptPathGold: "lib/datalake/datasets/glue-scripts/staging_to_gold.py",
-            GlueScriptArgumentsGold: {
+            glueGoldScriptPath: "lib/datalake/datasets/glue-scripts/staging_to_gold.py",
+            glueGoldScriptArguments: {
                 "--job-language": "python",
                 "--job-bookmark-option": "job-bookmark-disable",
                 "--enable-metrics": "",
-                "--DL_BUCKET": props.datalake.datalakeBucket.bucketName,
+                "--DL_BUCKET": props.dataLake.dataLakeBucket.bucketName,
                 "--DL_REGION": Stack.of(this).region,
                 "--DL_PREFIX": `/${goldDatabaseName}/`,
-                "--GLUE_SRC_DATABASE": staggingDatabaseName,
+                "--GLUE_SRC_DATABASE": stagingDatabaseName,
                 "--ANONIMIZATION_CONF": "{\"anonimization\":\"mondrian-k-anonimization\", \"datasets\": [{\"table\":\"trip\", \"feature_columns\":[\"usertype\",\"gender\",\"birthyear\"],\"categorical\":[\"usertype\",\"gender\"] ,\"k_value\":\"2\", \"sensitive_column\": \"trip_id\"}] }",
                 "--additional-python-modules": "spark_privacy_preserver==0.3.1",
                 "--python-modules-installer-option": "--upgrade"
-            },
+            }
         }));
     }
 }

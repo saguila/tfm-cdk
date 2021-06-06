@@ -10,34 +10,32 @@ export class DataLakeEnrollment extends cdk.Construct {
     public DataSetName: string;
     public CoarseAthenaAccessPolicy: iam.ManagedPolicy;
     private CoarseResourceAccessPolicy: iam.ManagedPolicy;
-    private CoarseIamPolciesApplied: boolean;
+    private CoarseIamPoliciesApplied: boolean;
     private WorkflowCronScheduleExpression?: string;
 
     constructor(scope: cdk.Construct, id: string, props: DataLakeEnrollment.DataLakeEnrollmentProps) {
         super(scope, id);
 
-        this.DataSetName = props.DataSetName;
-        this.CoarseIamPolciesApplied = false;
-        this.WorkflowCronScheduleExpression = props.WorkflowCronScheduleExpression;
+        this.DataSetName = props.dataSetName;
+        this.CoarseIamPoliciesApplied = false;
+        this.WorkflowCronScheduleExpression = props.workflowCronScheduleExpression;
 
     }
 
-    grantGlueRoleLakeFormationPermissions(DataSetGlueRole: iam.Role, DataSetName: string) {
-
+    grantGlueRoleLakeFormationPermissions(dataSetGlueRole: iam.Role, dataSetName: string) {
         //TODO: Permissions for database destination
         //Landing
-        this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
+        this.grantDataLocationPermissions(dataSetGlueRole, {
             Grantable: true,
-            GrantResourcePrefix: `${DataSetName}locationGrant`,
+            GrantResourcePrefix: `${dataSetName}locationGrant`,
             Location: this.DataEnrollment.DataLakeBucketName,
-            LocationPrefix: `/${this.DataEnrollment}/`
-            //LocationPrefix: this.DataEnrollment.DataLakePrefix
+            LocationPrefix: `/${this.DataEnrollment.LandingGlueDatabase}/`
         });
 
-        this.grantDatabasePermission(this.DataEnrollment.DataSetGlueRole,  {
+        this.grantDatabasePermission(dataSetGlueRole,  {
             DatabasePermissions: [DataLakeEnrollment.DatabasePermission.All],
             GrantableDatabasePermissions: [DataLakeEnrollment.DatabasePermission.All],
-            GrantResourcePrefix: `${DataSetName}RoleGrant`
+            GrantResourcePrefix: `${dataSetName}RoleGrant`
         }, true);
     }
 
@@ -265,7 +263,7 @@ export class DataLakeEnrollment extends cdk.Construct {
             const resolvedPrincipal = principal as  iam.Role;
 
             if(permissionGrant.GrantResourcePrefix){
-                grantIdPrefix = `${permissionGrant.GrantResourcePrefix}-${this.DataSetName}`
+                grantIdPrefix = `${permissionGrant.GrantResourcePrefix}-${this.DataSetName}`//`${permissionGrant.GrantResourcePrefix}-${this.DataSetName}`
             }else{
                 grantIdPrefix = `${resolvedPrincipal.roleName}-${this.DataSetName}`
             }
@@ -342,15 +340,16 @@ export class DataLakeEnrollment extends cdk.Construct {
             tableWithColumnsResource: tableWithColumnsProperty
         };
 
-        this.createLakeFormationPermission(`${coreGrant.grantIdPrefix}-${permissionGrant.table}-databaseTableWithColumnGrant`,coreGrant.dataLakePrincipal , tableWithColumnResourceProperty, permissionGrant.TableColumnPermissions, permissionGrant.GrantableTableColumnPermissions)
+        // this.createLakeFormationPermission(`${coreGrant.grantIdPrefix}-${permissionGrant.table}-databaseTableWithColumnGrant`,coreGrant.dataLakePrincipal , tableWithColumnResourceProperty, permissionGrant.TableColumnPermissions, permissionGrant.GrantableTableColumnPermissions)
+
+        this.createLakeFormationPermission(`${permissionGrant.table}-databaseTableWithColumnGrant`,coreGrant.dataLakePrincipal , tableWithColumnResourceProperty, permissionGrant.TableColumnPermissions, permissionGrant.GrantableTableColumnPermissions)
 
 
     }
 
     public grantDatabasePermission(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DatabasePermissionGrant, includeSourceDb: boolean = false){
 
-
-        var grantIdPrefix = ""
+        var grantIdPrefix = "";
         var dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
             dataLakePrincipalIdentifier: ""
         };
@@ -372,12 +371,12 @@ export class DataLakeEnrollment extends cdk.Construct {
         }
 
         if(resolvedPrincipalType === iam.User){
-            const resolvedPrincipal = principal as  iam.User;
-            grantIdPrefix = `${resolvedPrincipal.userName}-${this.DataSetName}`
+            const resolvedPrincipal = principal as iam.User;
+            grantIdPrefix = `${this.DataSetName}` //`${resolvedPrincipal.userName}-${this.DataSetName}` //(R)
             dataLakePrincipal = { dataLakePrincipalIdentifier: resolvedPrincipal.userArn };
         }
 
-        this.createLakeFormationPermission(`${grantIdPrefix}-databaseGrant`,dataLakePrincipal , databaseResourceProperty, permissionGrant.DatabasePermissions, permissionGrant.GrantableDatabasePermissions)
+        this.createLakeFormationPermission(`${grantIdPrefix}-databaseGrant`, dataLakePrincipal , databaseResourceProperty, permissionGrant.DatabasePermissions, permissionGrant.GrantableDatabasePermissions)
 
         if(includeSourceDb){
 
@@ -416,19 +415,17 @@ export class DataLakeEnrollment extends cdk.Construct {
 
         const resolvedPrincipalType = this.determinePrincipalType(principal);
 
-
-
         if(resolvedPrincipalType === iam.Role){
             this.CoarseAthenaAccessPolicy.attachToRole(principal as iam.Role);
             this.CoarseResourceAccessPolicy.attachToRole(principal as iam.Role);
-            this.CoarseIamPolciesApplied = true;
+            this.CoarseIamPoliciesApplied = true;
             return;
         }
 
         if(resolvedPrincipalType === iam.User){
             this.CoarseAthenaAccessPolicy.attachToUser(principal as iam.User);
             this.CoarseResourceAccessPolicy.attachToUser(principal as iam.User);
-            this.CoarseIamPolciesApplied = true;
+            this.CoarseIamPoliciesApplied = true;
             return;
         }
     }
@@ -476,7 +473,7 @@ export class DataLakeEnrollment extends cdk.Construct {
 
         this.grantCoarseIamRead(principal);
 
-        var grantIdPrefix = ""
+        var grantIdPrefix = "";
         var dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
             dataLakePrincipalIdentifier: ""
         };
@@ -489,13 +486,13 @@ export class DataLakeEnrollment extends cdk.Construct {
 
         if(resolvedPrincipalType === iam.Role) {
             const resolvedPrincipal = principal as  iam.Role;
-            grantIdPrefix = `${resolvedPrincipal.roleArn}-${this.DataSetName}`
+            grantIdPrefix = `${resolvedPrincipal.roleArn}-${this.DataSetName}`;
             dataLakePrincipal = { dataLakePrincipalIdentifier: resolvedPrincipal.roleArn };
         }
 
         if(resolvedPrincipalType === iam.User){
             const resolvedPrincipal = principal as  iam.User;
-            grantIdPrefix = `${resolvedPrincipal.userName}-${this.DataSetName}`
+            grantIdPrefix = `${resolvedPrincipal.userName}-${this.DataSetName}`;
             dataLakePrincipal = { dataLakePrincipalIdentifier: resolvedPrincipal.userArn };
         }
 
@@ -532,12 +529,12 @@ export namespace DataLakeEnrollment
 
     export interface DataLakeEnrollmentProps extends cdk.StackProps {
         dataLakeBucket: s3.Bucket;
-        GlueScriptPath: string;
-        GlueScriptArguments: any;
-        DataSetName: string;
-        GlueScriptPathGold: string;
-        GlueScriptArgumentsGold: any;
-        WorkflowCronScheduleExpression?: string;
+        dataSetName: string;
+        glueStagingScriptPath: string;
+        glueStagingScriptArguments: any;
+        glueGoldScriptPath: string;
+        glueGoldScriptArguments: any;
+        workflowCronScheduleExpression?: string;
     }
 
     export interface DatabasePermissionGrant {
