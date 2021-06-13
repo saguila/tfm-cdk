@@ -2,6 +2,7 @@ import sys
 import json
 
 from pyspark.sql.types import *
+from pyspark.sql import DataFrame
 from spark_privacy_preserver.mondrian_preserver import Preserver
 
 from awsglue.transforms import *
@@ -13,6 +14,8 @@ from awsglue.dynamicframe import DynamicFrame
 
 import boto3
 
+def createNewHas(inputDF: pyspark.sql.DataFrame):
+    inputDF.
 
 # # Needed to generate the schema that uses anonimization all features need be string format the sensible column in the origin format
 # def getAnonimizedSchema(original_table_schema, sensitive_column, output_columns):

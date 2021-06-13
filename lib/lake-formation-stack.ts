@@ -33,9 +33,9 @@ export class LakeFormationStack extends cdk.Stack {
     public readonly athenaResultsBucket: s3.Bucket;
     public readonly athenaResultsBucketAccessPolicy: ManagedPolicy;
     public readonly lakeFormationResource: lakeformation.CfnResource;
-    public readonly PrimaryAthenaWorkgroup: athena.CfnWorkGroup;
+    public readonly primaryAthenaWorkgroup: athena.CfnWorkGroup;
     private readonly bucketRole: Role;
-    private readonly starterAdminArn: string;
+    private readonly dataLakeAdminArn: string;
 
     constructor(scope: cdk.Construct, id: string, props: StackProps) {
 
@@ -45,6 +45,8 @@ export class LakeFormationStack extends cdk.Stack {
             type: "String",
             default:"",
             description: "Lake Formation principal Arn Admin"});
+
+        this.dataLakeAdminArn = lakeFormationPrincipalArn.valueAsString;
 
         const s3BucketName = new CfnParameter(this, "s3BucketOuput", {
             type: "String",

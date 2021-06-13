@@ -245,18 +245,19 @@ export class DataLakeEnrollment extends cdk.Construct {
     /* Attach S3 location and permissions to Lake Formation */
     public grantDataLocationPermissions(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DataLocationGrant , sourceLakeFormationLocation?: lakeformation.CfnResource ){
 
-        var grantIdPrefix = "";
-        var dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
+        let grantIdPrefix = "";
+        let dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
             dataLakePrincipalIdentifier: ""
         };
 
-        var s3Arn = `arn:aws:s3:::${permissionGrant.Location}${permissionGrant.LocationPrefix}` ;
+        const s3Arn = `arn:aws:s3:::${permissionGrant.Location}${permissionGrant.LocationPrefix}` ;
 
-        var dataLocationProperty : lakeformation.CfnPermissions.ResourceProperty = {
+        let dataLocationProperty : lakeformation.CfnPermissions.ResourceProperty = {
             dataLocationResource: {
                 s3Resource: s3Arn
             }
         };
+
         const resolvedPrincipalType = this.determinePrincipalType(principal);
 
         if(resolvedPrincipalType === iam.Role) {
@@ -349,23 +350,23 @@ export class DataLakeEnrollment extends cdk.Construct {
 
     public grantDatabasePermission(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DatabasePermissionGrant, includeSourceDb: boolean = false){
 
-        var grantIdPrefix = "";
-        var dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
+        let grantIdPrefix = "";
+        let dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
             dataLakePrincipalIdentifier: ""
         };
-        var databaseResourceProperty : lakeformation.CfnPermissions.ResourceProperty = {
+        let databaseResourceProperty : lakeformation.CfnPermissions.ResourceProperty = {
             databaseResource: {name: this.DataEnrollment.StagingGlueDatabase.databaseName}
         };
 
         const resolvedPrincipalType = this.determinePrincipalType(principal);
 
         if(resolvedPrincipalType === iam.Role) {
-            const resolvedPrincipal = principal as  iam.Role;
+            const resolvedPrincipal = principal as iam.Role;
 
             if(permissionGrant.GrantResourcePrefix){
                 grantIdPrefix = `${permissionGrant.GrantResourcePrefix}-${this.DataSetName}`
             }else{
-                grantIdPrefix = `${resolvedPrincipal.roleName}-${this.DataSetName}`
+                grantIdPrefix = `${this.DataSetName}`//`${resolvedPrincipal.roleName}-${this.DataSetName}` //(R)
             }
             dataLakePrincipal = { dataLakePrincipalIdentifier: resolvedPrincipal.roleArn };
         }

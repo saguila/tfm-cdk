@@ -1,5 +1,5 @@
-import { S3DatasetRegister } from '../constructs/s3-dataset-register';
-import { DataSetStack, DataSetStackProps} from '../dataset-stack';
+import { S3DatasetRegister } from './datalake/constructs/s3-dataset-register';
+import { DataSetStack, DataSetStackProps} from './datalake/dataset-stack';
 import { Bucket, IBucket} from "@aws-cdk/aws-s3";
 import { Construct, Stack } from "@aws-cdk/core";
 
@@ -36,7 +36,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 `/${landingDatabaseName}/weather/`,
             ],
             dataLakeBucket: props.dataLake.dataLakeBucket,
-            glueStagingScriptPath: "lib/datalake/datasets/glue-scripts/landing_to_stagging.py",
+            glueStagingScriptPath: "lib/datalake/datasets/glue-scripts/landing_to_staging.py",
             glueStagingScriptArguments: {
                 "--job-language": "python",
                 "--job-bookmark-option": "job-bookmark-disable",

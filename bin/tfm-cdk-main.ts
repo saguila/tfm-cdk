@@ -4,9 +4,10 @@ import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
 
 import { IngestStackFargate } from '../lib/ingest-stack-fargate'
-import {KaggleCycleShareDataset} from "../lib/datalake/datasets/kaggle-cycle-share-dataset";
+import {KaggleCycleShareDataset} from "../lib/kaggle-cycle-share-dataset";
 import {LakeFormationStack} from "../lib/lake-formation-stack";
 import {UsersLakeFormationStack} from "../lib/users-lake-formation-stack";
+import {DataLakeEnrollment} from "../lib/datalake/constructs/data-lake-enrollment";
 
 const app = new cdk.App();
 
@@ -30,6 +31,21 @@ const usersLakeFormation = new UsersLakeFormationStack(app,'users-lake-formation
     dataset: kaggleDatasetStack,
     awsAccount: app.node.tryGetContext('awsAccount')
 });
+
+/*
+const exampleTableWithColumnsGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
+    table: "trip",
+    database: "staging",
+    columns: ['trip_id','bikeid'],
+    DatabasePermissions: [],
+    GrantableDatabasePermissions: [],
+    TableColumnPermissions: [DataLakeEnrollment.TablePermission.Select],
+    GrantableTableColumnPermissions: [DataLakeEnrollment.TablePermission.Select]
+};
+
+kaggleDatasetStack.grantIamRead(usersLakeFormation.admin);
+kaggleDatasetStack.grantTableWithColumnPermissions(usersLakeFormation.admin, exampleTableWithColumnsGrant);
+*/
 
 
 
