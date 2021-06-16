@@ -61,7 +61,7 @@ export class UsersLakeFormationStack extends Stack {
             assumedBy: new ArnPrincipal(props?.awsAccount || "")
         });
 
-
+/*
         const exampleTableWithColumnsGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
             table: "trip",
             database: "staging",
@@ -73,7 +73,7 @@ export class UsersLakeFormationStack extends Stack {
         };
 
         this.dataset.grantIamRead(this.admin);
-        this.dataset.grantTableWithColumnPermissions(this.admin, exampleTableWithColumnsGrant);
+        this.dataset.grantTableWithColumnPermissions(this.admin, exampleTableWithColumnsGrant);*/
     }
 
 
