@@ -56,7 +56,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--DL_PREFIX": `/${goldDatabaseName}/`,
                 "--GLUE_SRC_DATABASE": stagingDatabaseName,
                 "--ANONYMIZATION_CONF": "{\"datasets\": [{\"table\":\"trip\", \"anonymization\":\"mondrian-k-anonymization\",\"feature_columns\":[\"usertype\",\"gender\",\"birthyear\"],\"categorical\":[\"usertype\",\"gender\"] ,\"k_value\":\"2\", \"sensitive_column\": \"trip_id\"}] }",
-                "--additional-python-modules": "spark_privacy_preserver==0.3.1",
+                "--additional-python-modules": "spark_privacy_preserver==0.3.1 pyspark==2.4.5 pyarrow==0.17.1 diffprivlib==0.2.1 mypy==0.770 tabulate==0.8.7 numpy==1.15.4 faker==8.8.1 ",
                 "--python-modules-installer-option": "--upgrade"
             }
         }));
