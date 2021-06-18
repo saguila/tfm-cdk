@@ -10,7 +10,7 @@ AWS_CREDENTIAL_PATH=~/.aws_glue
 ASSUME_ROLE_ARN=$1
 REGION=$2
 
-OUT=`aws sts assume-role --role-arn $ASSUME_ROLE_ARN --role-session-name glue_role_temp --duration-seconds 3600 --query Credentials`
+OUT=`aws sts assume-role --role-arn $ASSUME_ROLE_ARN --role-session-name glue_role_temp --duration-seconds 3600 --query Credentials --profile mios`
 export AWS_ACCESS_KEY_ID=`awk '/AccessKeyId/ {gsub("\"", "", $2); print $2}' <<< "$OUT" | sed -e 's/,//g'`
 export AWS_SECRET_ACCESS_KEY=`awk '/SecretAccessKey/ {gsub("\"", "", $2); print $2}' <<< "$OUT" | sed -e 's/,//g'`
 export AWS_SESSION_TOKEN=`awk '/SessionToken/ {gsub("\"", "", $2); print $2}' <<< "$OUT" | sed -e 's/,//g'`
