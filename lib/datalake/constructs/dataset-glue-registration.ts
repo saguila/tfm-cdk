@@ -1,4 +1,5 @@
 import * as cdk from '@aws-cdk/core';
+// import kms = require('@aws-cdk/aws-kms');
 import s3 = require('@aws-cdk/aws-s3');
 import glue = require('@aws-cdk/aws-glue');
 import lambda = require('@aws-cdk/aws-lambda');
@@ -6,6 +7,7 @@ import iam = require('@aws-cdk/aws-iam');
 import cfn = require("@aws-cdk/aws-cloudformation");
 import fs = require('fs');
 import s3assets = require('@aws-cdk/aws-s3-assets');
+// import {CfnDataCatalogEncryptionSettings} from "@aws-cdk/aws-glue";
 
 export interface DataSetEnrollmentProps extends cdk.StackProps {
     dataLakeBucket: s3.Bucket;
@@ -80,6 +82,18 @@ export class DatasetGlueRegistration extends cdk.Construct {
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.landingDatabaseName}/`
         });
 
+        // Metadata encryption at rest in landing database
+        /*
+        new CfnDataCatalogEncryptionSettings(this, `${props.landingDatabaseName}DBEncryption`, {
+            catalogId:  this.LandingGlueDatabase.catalogId,
+            dataCatalogEncryptionSettings: {
+                encryptionAtRest: {
+                    catalogEncryptionMode: 'SSE-KMS',
+                    sseAwsKmsKeyId: 'data-lake-kms'
+                },
+            }
+        });
+        */
         this.StagingGlueDatabase = new glue.Database(this, `${props.stagingDatabaseName}`, {
             databaseName: props.stagingDatabaseName,
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.stagingDatabaseName}/`
@@ -159,7 +173,7 @@ export class DatasetGlueRegistration extends cdk.Construct {
 
         const landingToStagingJob = new glue.CfnJob(this, `${props.landingDatabaseName}-EtlJob`, jobParams );
 
-        const stagingGlueCrawler = this.setupCrawler(this.StagingGlueDatabase, this.DataLakeStagingTargets, props.stagingDatabaseName|| "staging");
+        const stagingGlueCrawler = this.setupCrawler(this.StagingGlueDatabase, this.DataLakeStagingTargets, props.stagingDatabaseName || "staging");
 
         const jobParams2 = {
             executionProperty: {
@@ -309,7 +323,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 logical: "ANY"
             },
-            name: `staggingDataCrawled-${this.Workflow.name}`,
+            name: `stagingDataCrawled-${this.Workflow.name}`,
             actions: [
                 {
                     jobName: props.stagingToGoldGlueJob.name
@@ -332,7 +346,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 logical: "ANY"
             },
-            name: `StaggingToGoldEtlCompleteTrigger-${this.Workflow.name}`,
+            name: `StagingToGoldEtlCompleteTrigger-${this.Workflow.name}`,
             actions: [
                 {
                     crawlerName: props.goldCrawler.name
@@ -349,7 +363,6 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         this.ETLCompleteTrigger.node.addDependency(this.Workflow);
         this.StagingCrawlerCompleteTrigger.node.addDependency(this.Workflow);
         this.StagingToGoldEtlCompleteTrigger.node.addDependency(this.Workflow);
-
 
         const activateTriggerRole = new iam.Role(this, 'activateTriggerRole', {
             assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com')
