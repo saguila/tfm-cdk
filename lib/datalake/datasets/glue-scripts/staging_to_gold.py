@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 
@@ -15,7 +16,6 @@ from pyspark.sql.functions import udf, col, lit
 from awsglue.dynamicframe import DynamicFrame
 
 import boto3
-
 
 def fake_data(kind):
     if kind == 'lat':
@@ -112,12 +112,20 @@ def anonymize(input_df, table_ano_conf):
 args = getResolvedOptions(sys.argv, ['JOB_NAME', 'DL_BUCKET', 'DL_PREFIX', 'DL_REGION', 'GLUE_SRC_DATABASE',
                                      'ANONYMIZATION_CONF'])
 sc = SparkContext()
+
+os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
+
 # avoiding spark creates $folders$ in S3
 hadoop_conf = sc._jsc.hadoopConfiguration()
 hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
 hadoop_conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
+
+# Needed to reliably work between parquet, spark, and pandas dataframes.
+spark.conf.set("spark.executorEnv.ARROW_PRE_0_15_IPC_FORMAT", "1")
+spark.conf.set("spark.yarn.appMasterEnv.ARROW_PRE_0_15_IPC_FORMAT", "1")
+
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
