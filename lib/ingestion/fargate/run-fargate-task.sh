@@ -1,5 +1,5 @@
 #!/bin/bash
-# Example of execution bash run-fargate-task.sh tfm-ingest-fargate-stack-Fargate001516A4-OJPUndHoNZri tfmingestfargatestackkaggleIngestTaskDefE4A66CC5:6 "awsvpcConfiguration={subnets=[subnet-084b9227cbce89689],securityGroups=[sg-0d7570c1fc2b457ec],assignPublicIp=ENABLED}"
+# Example of execution bash run-fargate-task.sh tfm-ingest-fargate-stack-Fargate001516A4-bbcpUoi73lsg tfmingestfargatestackkaggleIngestTaskDefE4A66CC5:2 "awsvpcConfiguration={subnets=[subnet-06a83e2e10b01b391],securityGroups=[sg-009c43c9f17836d93],assignPublicIp=ENABLED}"
 
 if [ "$#" -ne 3 ]; then
         echo "Usage: $0 <ecs-cluster> <ecs-task-definition> <ecs-network-configuration = awsvpcConfiguration={subnets=[string,string],securityGroups=[string,string],assignPublicIp=DISABLED/ENABLED}>"

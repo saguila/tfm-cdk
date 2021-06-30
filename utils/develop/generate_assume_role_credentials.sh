@@ -1,3 +1,6 @@
+#!/bin/bash
+# Example execution  bash generate_assume_role_credentials.sh arn:aws:iam::123364522621:role/kaggle-datalake-register-landingEnrollmentlanding-9HPTXH5U06KO us-east-1
+
 if [ "$#" -ne 2 ]; then
         echo "Usage: $0 <role> <region>"
         exit 1
@@ -10,7 +13,7 @@ AWS_CREDENTIAL_PATH=~/.aws_glue
 ASSUME_ROLE_ARN=$1
 REGION=$2
 
-OUT=`aws sts assume-role --role-arn $ASSUME_ROLE_ARN --role-session-name glue_role_temp --duration-seconds 3600 --query Credentials --profile mios`
+OUT=`aws sts assume-role --role-arn $ASSUME_ROLE_ARN --role-session-name glue_role_temp --duration-seconds 3600 --query Credentials`
 export AWS_ACCESS_KEY_ID=`awk '/AccessKeyId/ {gsub("\"", "", $2); print $2}' <<< "$OUT" | sed -e 's/,//g'`
 export AWS_SECRET_ACCESS_KEY=`awk '/SecretAccessKey/ {gsub("\"", "", $2); print $2}' <<< "$OUT" | sed -e 's/,//g'`
 export AWS_SESSION_TOKEN=`awk '/SessionToken/ {gsub("\"", "", $2); print $2}' <<< "$OUT" | sed -e 's/,//g'`

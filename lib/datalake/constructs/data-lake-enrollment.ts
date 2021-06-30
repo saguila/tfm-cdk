@@ -291,28 +291,28 @@ export class DataLakeEnrollment extends cdk.Construct {
                 locationPermission.addDependsOn(sourceLakeFormationLocation);
             }
         }
-
-
     }
 
     public grantTableWithColumnPermissions(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.TableWithColumnPermissionGrant){
 
         const coreGrant = this.setupIamAndLakeFormationDatabasePermissionForPrincipal(principal, permissionGrant.DatabasePermissions, permissionGrant.GrantableDatabasePermissions);
+        const timeInMilisStr :string = (new Date().getTime() / Math.floor(Math.random() * 100)).toString();
+
 
         const wildcardProperty: lakeformation.CfnPermissions.ColumnWildcardProperty = {
             excludedColumnNames: permissionGrant.columns
         };
 
-        var  tableWithColumnsProperty : lakeformation.CfnPermissions.TableWithColumnsResourceProperty = {
+        let tableWithColumnsProperty : lakeformation.CfnPermissions.TableWithColumnsResourceProperty = {
             columnNames: permissionGrant.columns,
-            databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
+            databaseName: permissionGrant.database,
             name: permissionGrant.table
         };
 
         if(permissionGrant.wildCardFilter === null){
             tableWithColumnsProperty = {
                 columnNames: permissionGrant.columns,
-                databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
+                databaseName: permissionGrant.database,
                 name: permissionGrant.table
             };
         }else{
@@ -320,14 +320,14 @@ export class DataLakeEnrollment extends cdk.Construct {
             if(permissionGrant.wildCardFilter == DataLakeEnrollment.TableWithColumnFilter.Include){
                 tableWithColumnsProperty = {
                     columnNames: permissionGrant.columns,
-                    databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
+                    databaseName: permissionGrant.database,
                     name: permissionGrant.table
                 };
             }
 
             if(permissionGrant.wildCardFilter == DataLakeEnrollment.TableWithColumnFilter.Exclude){
                 tableWithColumnsProperty = {
-                    databaseName: this.DataEnrollment.StagingGlueDatabase.databaseName,
+                    databaseName: permissionGrant.database,
                     name: permissionGrant.table,
                     columnWildcard: {
                         excludedColumnNames: permissionGrant.columns
@@ -343,13 +343,13 @@ export class DataLakeEnrollment extends cdk.Construct {
 
         // this.createLakeFormationPermission(`${coreGrant.grantIdPrefix}-${permissionGrant.table}-databaseTableWithColumnGrant`,coreGrant.dataLakePrincipal , tableWithColumnResourceProperty, permissionGrant.TableColumnPermissions, permissionGrant.GrantableTableColumnPermissions)
 
-        this.createLakeFormationPermission(`${permissionGrant.table}-databaseTableWithColumnGrant`,coreGrant.dataLakePrincipal , tableWithColumnResourceProperty, permissionGrant.TableColumnPermissions, permissionGrant.GrantableTableColumnPermissions)
+        this.createLakeFormationPermission(`${permissionGrant.table}-${timeInMilisStr}-databaseTableWithColumnGrant`,coreGrant.dataLakePrincipal , tableWithColumnResourceProperty, permissionGrant.TableColumnPermissions, permissionGrant.GrantableTableColumnPermissions)
 
 
     }
 
     public grantDatabasePermission(principal: iam.IPrincipal, permissionGrant: DataLakeEnrollment.DatabasePermissionGrant, includeSourceDb: boolean = false){
-
+        const timeInMilisStr :string = (new Date().getTime() / Math.floor(Math.random() * 100)).toString();
         let grantIdPrefix = "";
         let dataLakePrincipal : lakeformation.CfnPermissions.DataLakePrincipalProperty = {
             dataLakePrincipalIdentifier: ""
@@ -366,14 +366,14 @@ export class DataLakeEnrollment extends cdk.Construct {
             if(permissionGrant.GrantResourcePrefix){
                 grantIdPrefix = `${permissionGrant.GrantResourcePrefix}-${this.DataSetName}`
             }else{
-                grantIdPrefix = `${this.DataSetName}`//`${resolvedPrincipal.roleName}-${this.DataSetName}` //(R)
+                grantIdPrefix = `${this.DataSetName}-${timeInMilisStr}`//`${resolvedPrincipal.roleName}-${this.DataSetName}` //(R)
             }
             dataLakePrincipal = { dataLakePrincipalIdentifier: resolvedPrincipal.roleArn };
         }
 
         if(resolvedPrincipalType === iam.User){
             const resolvedPrincipal = principal as iam.User;
-            grantIdPrefix = `${this.DataSetName}` //`${resolvedPrincipal.userName}-${this.DataSetName}` //(R)
+            grantIdPrefix = `${this.DataSetName}-${timeInMilisStr}` //`${resolvedPrincipal.userName}-${this.DataSetName}` //(R)
             dataLakePrincipal = { dataLakePrincipalIdentifier: resolvedPrincipal.userArn };
         }
 

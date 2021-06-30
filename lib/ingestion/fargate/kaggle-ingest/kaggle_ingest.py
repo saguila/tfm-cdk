@@ -13,7 +13,7 @@ os.environ['KAGGLE_KEY'] = ssm.get_parameter(Name=os.environ['SSM_REF_KAGGLE_KEY
 # Initialize API
 from kaggle.api.kaggle_api_extended import KaggleApi
 api = KaggleApi()
-api.authenticate()
+api.authenticate()yarn cdk deploy tfm-ingest-fargate-stack -c kaggleUser=sebastial -c datasetName=cycle_share_dataset -c kaggleKey=fa9b62c6513da5754f1c238dc465fb9 -c awsAccount=arn:aws:iam::394341365917:user/sebas -c dataSetName=cycle -c landingDatabaseName=landing -c stagingDatabaseName=staging -c goldDatabaseName=gold -c dataLakeBucketName=tfm-data-lake
 
 # Getting variables
 temp_path = "./tmp_dir"
