@@ -104,7 +104,7 @@ export class DatasetGlueRegistration extends cdk.Construct {
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.goldDatabaseName}/`
         });
 
-        //TODO: Delete
+
         let connectionArray = [];
 
 
