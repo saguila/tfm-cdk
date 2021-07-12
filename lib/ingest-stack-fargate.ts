@@ -6,7 +6,6 @@ import { LogGroup, RetentionDays } from "@aws-cdk/aws-logs";
 import { StringParameter } from "@aws-cdk/aws-ssm";
 import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
 
-//  yarn cdk deploy -c kaggleUser=sebastial -c datasetName=cycle_share_dataset -c kaggleKey=fa9b62c6513da5754f1c238dc465fb94 --parameters kaggleDataset=pronto/cycle-share-dataset --parameters s3BucketOuput=tfm-ingest-datalake --parameters s3IngestDir=stagging
 export interface ContextIngestionProps extends StackProps {
     readonly kaggleUser?: string;
     readonly kaggleKey?: string;

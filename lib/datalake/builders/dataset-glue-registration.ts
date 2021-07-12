@@ -9,7 +9,7 @@ import fs = require('fs');
 import s3assets = require('@aws-cdk/aws-s3-assets');
 // import {CfnDataCatalogEncryptionSettings} from "@aws-cdk/aws-glue";
 
-export interface DataSetEnrollmentProps extends cdk.StackProps {
+export interface DataSetRegistrationProps extends cdk.StackProps {
     dataLakeBucket: s3.Bucket;
     dataSetName: string;
     landingDatabaseName: string;
@@ -68,7 +68,7 @@ export class DatasetGlueRegistration extends cdk.Construct {
         });
     }
 
-    constructor(scope: cdk.Construct, id: string, props: DataSetEnrollmentProps) {
+    constructor(scope: cdk.Construct, id: string, props: DataSetRegistrationProps) {
         super(scope, id);
 
         this.DataLakeGoldTargets = props.dataLakeGoldTargets;

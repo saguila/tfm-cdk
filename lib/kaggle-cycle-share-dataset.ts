@@ -1,9 +1,9 @@
-import { S3DatasetRegister } from './datalake/constructs/s3-dataset-register';
-import { DataSetStack, DataSetStackProps} from './datalake/dataset-stack';
+import { S3DatasetRegistration } from './datalake/builders/s3-dataset-registration';
+import { DatasetManager, DatasetManagerProps} from './datalake/dataset-manager';
 import { Bucket, IBucket} from "@aws-cdk/aws-s3";
 import { Construct, Stack } from "@aws-cdk/core";
 
-export interface ContextDatasetProps extends DataSetStackProps {
+export interface ContextDatasetProps extends DatasetManagerProps {
     readonly dataLakeBucketName: string;
     readonly dataSetName: string;
     readonly landingDatabaseName: string;
@@ -11,7 +11,7 @@ export interface ContextDatasetProps extends DataSetStackProps {
     readonly goldDatabaseName: string;
 }
 
-export class KaggleCycleShareDataset extends DataSetStack {
+export class KaggleCycleShareDataset extends DatasetManager {
 
     constructor(scope: Construct, id: string, props: ContextDatasetProps) {
         super(scope, id, props);
@@ -23,7 +23,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
     const goldDatabaseName : string = props?.goldDatabaseName;
     const dataLakeBucket : IBucket = Bucket.fromBucketName(this,'dataLakeBucket', dataLakeBucketName);
 
-    this.Enrollments.push(new S3DatasetRegister(this, `${dataLakeBucketName}Enrollment`, {
+    this.Enrollments.push(new S3DatasetRegistration(this, `${dataLakeBucketName}Enrollment`, {
             dataSetName: dataSetName,
             databaseLandingName: landingDatabaseName,
             databaseStagingName: stagingDatabaseName,
@@ -33,7 +33,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
             sourceBucketDataPrefixes: [
                 `/${landingDatabaseName}/station/`,
                 `/${landingDatabaseName}/trip/`,
-                `/${landingDatabaseName}/weather/`,
+                `/${landingDatabaseName}/weather/`
             ],
             dataLakeBucket: props.dataLake.dataLakeBucket,
             glueStagingScriptPath: "lib/datalake/datasets/glue-scripts/landing_to_staging.py",
@@ -55,7 +55,7 @@ export class KaggleCycleShareDataset extends DataSetStack {
                 "--DL_REGION": Stack.of(this).region,
                 "--DL_PREFIX": `/${goldDatabaseName}/`,
                 "--GLUE_SRC_DATABASE": stagingDatabaseName,
-                "--ANONYMIZATION_CONF": "{\"datasets\": [{\"table\":\"trip\", \"anonymization\":\"mondrian-k-anonymization\",\"feature_columns\":[\"usertype\",\"gender\",\"birthyear\"],\"categorical\":[\"usertype\",\"gender\"] ,\"k_value\":\"2\", \"sensitive_column\": \"trip_id\"}] }",
+                "--ANONYMIZATION_CONF": "{\"datasets\": [{\"table\":\"trip\", \"anonymization\":\"mondrian-k-anonymization\", \"feature_columns\":[\"usertype\",\"gender\",\"birthyear\"],\"categorical\":[\"usertype\",\"gender\"] ,\"k_value\":\"2\", \"sensitive_column\": \"trip_id\"}] }",
                 "--additional-python-modules": "spark_privacy_preserver==0.3.1 pyspark==2.4.5 pyarrow==0.14.1 diffprivlib==0.2.1 mypy==0.770 tabulate==0.8.7 numpy==1.15.4 pandas==1.1.5 faker==8.8.1",
                 //"--python-modules-installer-option": "--upgrade"
             }

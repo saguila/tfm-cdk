@@ -10,7 +10,7 @@ import {
     User
 } from "@aws-cdk/aws-iam";
 import {KaggleCycleShareDataset} from "./kaggle-cycle-share-dataset";
-import {DataLakeEnrollment} from "./datalake/constructs/data-lake-enrollment";
+import {DataLakeConfRegistration} from "./datalake/builders/data-lake-conf-registration";
 
 export interface ContextUsersLakeFormationProps extends StackProps {
     dataset: KaggleCycleShareDataset

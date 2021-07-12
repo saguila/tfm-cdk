@@ -4,10 +4,9 @@ import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
 
 import { IngestStackFargate } from '../lib/ingest-stack-fargate'
-import {KaggleCycleShareDataset} from "../lib/kaggle-cycle-share-dataset";
-import {LakeFormationStack} from "../lib/lake-formation-stack";
-import {UsersLakeFormationStack} from "../lib/users-lake-formation-stack";
-import {DataLakeEnrollment} from "../lib/datalake/constructs/data-lake-enrollment";
+import { KaggleCycleShareDataset } from "../lib/kaggle-cycle-share-dataset";
+import { LakeFormationStack } from "../lib/lake-formation-stack";
+import { UsersLakeFormationStack } from "../lib/users-lake-formation-stack";
 
 const app = new cdk.App();
 
@@ -32,6 +31,7 @@ const usersLakeFormation = new UsersLakeFormationStack(app,'users-lake-formation
     awsAccount: app.node.tryGetContext('awsAccount')
 });
 
+/*
 kaggleDatasetStack.grantIamRead(usersLakeFormation.admin);
 kaggleDatasetStack.grantIamRead(usersLakeFormation.user);
 kaggleDatasetStack.grantIamRead(usersLakeFormation.scientist);
@@ -48,7 +48,6 @@ const tripScientistGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
 
 kaggleDatasetStack.grantTableWithColumnPermissions(usersLakeFormation.scientist, tripScientistGrant);
 
-/*
 const tripAdminGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
     table: "trip",
     database: "gold",
@@ -116,12 +115,6 @@ const weatherAdminGrant: DataLakeEnrollment.TableWithColumnPermissionGrant = {
     GrantableTableColumnPermissions: [DataLakeEnrollment.TablePermission.Select]
 };
 
-kaggleDatasetStack.grantTableWithColumnPermissions(usersLakeFormation.admin, weatherAdminGrant);*/
+kaggleDatasetStack.grantTableWithColumnPermissions(usersLakeFormation.admin, weatherAdminGrant);
 
-
-
-
-
-
-
-
+*/

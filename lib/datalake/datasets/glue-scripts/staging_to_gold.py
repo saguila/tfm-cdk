@@ -108,6 +108,7 @@ def anonymize(input_df, table_ano_conf):
         output_df = input_df
     return output_df
 
+#TODO: agrupar en main
 
 args = getResolvedOptions(sys.argv, ['JOB_NAME', 'DL_BUCKET', 'DL_PREFIX', 'DL_REGION', 'GLUE_SRC_DATABASE',
                                      'ANONYMIZATION_CONF'])

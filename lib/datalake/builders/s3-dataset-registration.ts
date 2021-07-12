@@ -3,12 +3,12 @@ import iam = require('@aws-cdk/aws-iam');
 import glue = require('@aws-cdk/aws-glue');
 import s3 = require('@aws-cdk/aws-s3');
 
-import { DataLakeEnrollment } from './data-lake-enrollment';
+import { DataLakeConfRegistration } from './data-lake-conf-registration';
 import lakeformation = require("@aws-cdk/aws-lakeformation");
 import { DatasetGlueRegistration } from './dataset-glue-registration';
 
 
-export interface S3dataSetEnrollmentProps extends DataLakeEnrollment.DataLakeEnrollmentProps {
+export interface S3dataSetProps extends DataLakeConfRegistration.DataLakeConfProps {
     sourceBucket: s3.IBucket;
     sourceBucketDataPrefixes: string[];
     maxDPUs: number;
@@ -20,11 +20,11 @@ export interface S3dataSetEnrollmentProps extends DataLakeEnrollment.DataLakeEnr
 /**
  * Gestor de los permisos de S3 para el dataset
  */
-export class S3DatasetRegister extends DataLakeEnrollment {
+export class S3DatasetRegistration extends DataLakeConfRegistration {
 
     private readonly sourceBucket: s3.IBucket;
 
-    constructor(scope: cdk.Construct, id: string, props: S3dataSetEnrollmentProps) {
+    constructor(scope: cdk.Construct, id: string, props: S3dataSetProps) {
         super(scope, id, props);
 
         /* The dataset name must be match with the root location in s3 */
@@ -88,7 +88,7 @@ export class S3DatasetRegister extends DataLakeEnrollment {
             }
         }
 
-        this.DataEnrollment = new DatasetGlueRegistration(this, `${props.dataSetName}-s3Enrollment`, {
+        this.DataRegistration = new DatasetGlueRegistration(this, `${props.dataSetName}-s3Enrollment`, {
             dataSetName: props.dataSetName,
             dataLakeBucket: props.dataLakeBucket,
             goldDatabaseName: props.databaseGoldName,
@@ -116,7 +116,7 @@ export class S3DatasetRegister extends DataLakeEnrollment {
 
         //this.setupGlueRoleLakeFormationPermissions(this.DataEnrollment.DataSetGlueRole, props.dataSetName, props.sourceBucket);
 
-        this.grantCoarseIamRead(this.DataEnrollment.DataSetGlueRole);
+        this.grantCoarseIamRead(this.DataRegistration.DataSetGlueRole);
     }
 
     /**
@@ -132,7 +132,7 @@ export class S3DatasetRegister extends DataLakeEnrollment {
             "sourceLakeFormationLocation",
             {
                 resourceArn: sourceDataBucket.bucketArn,
-                roleArn: this.DataEnrollment.DataSetGlueRole.roleArn,
+                roleArn: this.DataRegistration.DataSetGlueRole.roleArn,
                 useServiceLinkedRole: true,
             }
         );
@@ -141,7 +141,7 @@ export class S3DatasetRegister extends DataLakeEnrollment {
         //super.grantGlueRoleLakeFormationPermissions(DataSetGlueRole, DataSetName);
 
         /* Add Lake Formation root Location s3 location & Glue permissions */
-        this.grantDataLocationPermissions(this.DataEnrollment.DataSetGlueRole, {
+        this.grantDataLocationPermissions(this.DataRegistration.DataSetGlueRole, {
             Grantable: true,
             GrantResourcePrefix: `${DataSetName}SourcelocationGrant`,
             Location: sourceDataBucket.bucketName,
