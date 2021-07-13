@@ -4,7 +4,6 @@ import {
     Effect,
     IPrincipal,
     ManagedPolicy,
-    // Policy,
     PolicyDocument,
     PolicyStatement,
     Role,
@@ -12,7 +11,6 @@ import {
     User
 } from "@aws-cdk/aws-iam";
 import {BucketEncryption} from "@aws-cdk/aws-s3";
-// import kms = require('@aws-cdk/aws-kms');
 import glue = require('@aws-cdk/aws-glue');
 import athena = require("@aws-cdk/aws-athena");
 import cfn = require("@aws-cdk/aws-cloudformation");
@@ -33,12 +31,9 @@ export interface DataLakeStackContext extends cdk.StackProps {
 
 export class LakeFormationStack extends cdk.Stack {
 
-    // public readonly EncryptionKey: kms.Key;
     public readonly dataLakeBucket: s3.Bucket;
     public readonly athenaResultsBucket: s3.Bucket;
     public readonly athenaResultsBucketAccessPolicy: ManagedPolicy;
-    // public readonly glueEncryptionAccessPolicy: ManagedPolicy;
-    // public readonly logsEncryptionPermissionsPolicy: Policy;
     public readonly lakeFormationResource: lakeformation.CfnResource;
     public readonly primaryAthenaWorkgroup: athena.CfnWorkGroup;
     private readonly bucketRole: Role;
@@ -80,105 +75,6 @@ export class LakeFormationStack extends cdk.Stack {
                 },
             ],
         });
-
-        /*
-        this.EncryptionKey = new kms.Key(this,'data-lake-kms',{
-            alias: "data-lake-kms"
-        });
-         */
-
-        /* Glue configuration encryption at rest */
-        new glue.SecurityConfiguration(this, 'DataLakeGlueSecurity', {
-            securityConfigurationName: 'data-lake-glue-security',
-            /*
-            jobBookmarksEncryption: {
-                mode: glue.JobBookmarksEncryptionMode.CLIENT_SIDE_KMS,
-                kmsKey: this.EncryptionKey,
-            },
-            cloudWatchEncryption: {
-                mode: glue.CloudWatchEncryptionMode.KMS,
-                kmsKey: this.EncryptionKey,
-            },
-            */
-            s3Encryption: {
-                mode: glue.S3EncryptionMode.S3_MANAGED
-            }
-        });
-
-        /* Any client that accesses or writes to an encrypted catalog—that is, any console user, crawler, job, or development endpoint—needs the following permissions */
-        /*
-        const glueEncryptionAccess = {
-            Version: "2012-10-17",
-            Statement: [
-                {
-                    Effect: "Allow",
-                    Action: [
-                        "kms:GenerateDataKey",
-                        "kms:Decrypt",
-                        "kms:Encrypt"
-                    ],
-                    Resource: this.EncryptionKey.keyArn
-                }
-            ]
-        };
-
-        const glueEncryptionAccessPolicyDoc = PolicyDocument.fromJson(
-            glueEncryptionAccess
-        );
-
-        /*
-        this.glueEncryptionAccessPolicy = new ManagedPolicy(
-            this,
-            `glueEncryptionAccessPolicy`,
-            {
-                document: glueEncryptionAccessPolicyDoc,
-                description: `AthenaResultBucketAccessPolicy`,
-            }
-        );
-        */
-
-        // https://docs.amazonaws.cn/en_us/glue/latest/dg/set-up-encryption.html
-        /* Any ETL job or crawler that writes encrypted Amazon CloudWatch Logs requires the following permissions in the key policy (not the IAM policy).  */
-/*        const logsEncryptionPermissions = {
-            Version: "2012-10-17",
-            Statement: [
-                {
-                    Effect: "Allow",
-                    Principal: {
-                        Service: "logs.region.amazonaws.com"
-                    },
-                    Action: [
-                        "kms:Encrypt*",
-                        "kms:Decrypt*",
-                        "kms:ReEncrypt*",
-                        "kms:GenerateDataKey*",
-                        "kms:Describe*"
-                    ],
-                    Resource: this.EncryptionKey.keyArn
-                }
-            ]
-        };
-
-        const logsEncryptionPermissionsPolicyDoc = new PolicyStatement({
-           effect: Effect.ALLOW,
-           resources: [
-               this.EncryptionKey.keyArn
-           ],
-           actions: [
-               "kms:Encrypt*",
-               "kms:Decrypt*",
-               "kms:ReEncrypt*",
-               "kms:GenerateDataKey*",
-               "kms:Describe*"
-           ],
-           principals: [
-               new ServicePrincipal("logs.region.amazonaws.com")
-           ]
-        });
-
-        this.logsEncryptionPermissionsPolicy = new Policy(this,'logsEncryptionPermissionsPolicy',{
-            statements:[logsEncryptionPermissionsPolicyDoc]
-        });*/
 
         /* String with policy for access to athena results s3 bucket */
         const coarseAthenaResultBucketAccess = {
@@ -288,76 +184,6 @@ export class LakeFormationStack extends cdk.Stack {
             }
         );
     }
-
-    /***
-     * Given a IAM principal giver permissions to generate encrypted glue logs
-     * @param principal IAM identity
-     */
-    /*
-    public grantLogsEncryptionPermissions(principal: IPrincipal) {
-        if (principal instanceof Role) {
-            this.logsEncryptionPermissionsPolicy.attachToRole(principal);
-            return;
-        }
-
-        if (principal instanceof User) {
-            this.logsEncryptionPermissionsPolicy.attachToUser(principal);
-            return;
-        }
-
-        if (principal instanceof cdk.Resource) {
-            try {
-                const user = principal as User;
-                this.logsEncryptionPermissionsPolicy.attachToUser(user);
-                return;
-            } catch (exception) {
-                console.log(exception);
-            }
-            try {
-                const role = principal as Role;
-                this.logsEncryptionPermissionsPolicy.attachToRole(role);
-                return;
-            } catch (exception) {
-                console.log(exception);
-            }
-        }
-    }
-    */
-
-    /***
-     * Given a IAM principal giver permissions to access encrypted glue metadata
-     * @param principal IAM identity
-     */
-    /*
-    public grantGlueEncryptionAccess(principal: IPrincipal) {
-        if (principal instanceof Role) {
-            this.glueEncryptionAccessPolicy.attachToRole(principal);
-            return;
-        }
-
-        if (principal instanceof User) {
-            this.glueEncryptionAccessPolicy.attachToUser(principal);
-            return;
-        }
-
-        if (principal instanceof cdk.Resource) {
-            try {
-                const user = principal as User;
-                this.glueEncryptionAccessPolicy.attachToUser(user);
-                return;
-            } catch (exception) {
-                console.log(exception);
-            }
-            try {
-                const role = principal as Role;
-                this.glueEncryptionAccessPolicy.attachToRole(role);
-                return;
-            } catch (exception) {
-                console.log(exception);
-            }
-        }
-    }
-    */
 
     /***
      * Given a IAM principal giver permissions to access into a athena results bucket

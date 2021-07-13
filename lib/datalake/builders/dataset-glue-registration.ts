@@ -204,8 +204,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 type: "ON_DEMAND",
                 name: `startWorkflow-${this.Workflow.name}`,
-                workflowName: this.Workflow.name,
-                startOnCreation: true
+                workflowName: this.Workflow.name
             });
         }else{
             this.StartTrigger = new glue.CfnTrigger(this,"startTrigger",{
@@ -262,8 +261,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 }
             ],
             workflowName: this.Workflow.name,
-            type: "CONDITIONAL",
-            startOnCreation: true
+            type: "CONDITIONAL"
         });
 
         /* ETL Staging to Gold */
@@ -307,8 +305,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 }
             ],
             workflowName: this.Workflow.name,
-            type: "CONDITIONAL",
-            startOnCreation: true
+            type: "CONDITIONAL"
         });
 
         /* Set dependencies for wait the workflow resource creation used in steps definition */
@@ -355,7 +352,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         }
 
         /* Activate landing crawler using the lambda component */
-        const landingCrawler_activation = new cfn.CustomResource(this, 'srcCrawlerCompleteTrigger-triggerActivation',  {cdk
+        const landingCrawler_activation = new cfn.CustomResource(this, 'landingCrawlerComplete-activation',  {
             provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
             properties: {
                 triggerId: this.LandingCrawlerCompleteTrigger.name
@@ -363,7 +360,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         });
 
         /* Activate workflow step landing to staging using the lambda component */
-        const landingToStaging_activation = new cfn.CustomResource(this, 'etlTrigger-triggerActivation',  {
+        const landingToStaging_activation = new cfn.CustomResource(this, 'landingToStaging-activation',  {
             provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
             properties: {
                 triggerId: this.LandingToStagingCompleteTrigger.name
@@ -371,7 +368,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         });
 
         /* Activate workflow step staging to gold using the lambda component */
-        const stagingCrawlerCompleteTrigger_activation = new cfn.CustomResource(this, 'stagingCrawlerCompleteTrigger_activation',  {
+        const stagingCrawlerCompleteTrigger_activation = new cfn.CustomResource(this, 'stagingCrawlerCompleteTrigger-activation',  {
             provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
             properties: {
                 triggerId: this.StagingCrawlerCompleteTrigger.name
@@ -379,7 +376,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         });
 
         /* Activate workflow step gold crawling using the lambda component */
-        const stagingToGoldEtlCompleteTrigger_activation = new cfn.CustomResource(this, 'stagingToGoldCompleteTrigger_activation',  {
+        const stagingToGoldEtlCompleteTrigger_activation = new cfn.CustomResource(this, 'stagingToGoldCompleteTrigger-activation',  {
             provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
             properties: {
                 triggerId: this.StagingToGoldCompleteTrigger.name
