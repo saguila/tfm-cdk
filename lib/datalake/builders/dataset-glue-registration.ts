@@ -1,5 +1,4 @@
 import * as cdk from '@aws-cdk/core';
-// import kms = require('@aws-cdk/aws-kms');
 import s3 = require('@aws-cdk/aws-s3');
 import glue = require('@aws-cdk/aws-glue');
 import lambda = require('@aws-cdk/aws-lambda');
@@ -7,7 +6,6 @@ import iam = require('@aws-cdk/aws-iam');
 import cfn = require("@aws-cdk/aws-cloudformation");
 import fs = require('fs');
 import s3assets = require('@aws-cdk/aws-s3-assets');
-// import {CfnDataCatalogEncryptionSettings} from "@aws-cdk/aws-glue";
 
 export interface DataSetRegistrationProps extends cdk.StackProps {
     dataLakeBucket: s3.Bucket;
@@ -15,7 +13,6 @@ export interface DataSetRegistrationProps extends cdk.StackProps {
     landingDatabaseName: string;
     stagingDatabaseName: string;
     goldDatabaseName: string;
-    sourceConnectionInput?: glue.CfnConnection.ConnectionInputProperty;
     dataLakeLandingTargets: glue.CfnCrawler.TargetsProperty;
     dataLakeStagingTargets: glue.CfnCrawler.TargetsProperty;
     dataLakeGoldTargets: glue.CfnCrawler.TargetsProperty;
@@ -36,15 +33,10 @@ export class DatasetGlueRegistration extends cdk.Construct {
     public readonly LandingGlueDatabase: glue.Database;
     public readonly StagingGlueDatabase: glue.Database;
     public readonly GoldGlueDatabase: glue.Database;
-
     public readonly Workflow: DataLakeEnrollmentWorkflow;
-    public readonly SrcCrawlerCompleteTrigger: glue.CfnTrigger;
-    public readonly ETLCompleteTrigger: glue.CfnTrigger;
-    public readonly SourceConnection?: glue.CfnConnection;
-    public readonly DataLakeConnection: glue.CfnConnection;
-
+    public readonly LandingCrawlerCompleteTrigger: glue.CfnTrigger;
+    public readonly LandingToStagingCompleteTrigger: glue.CfnTrigger;
     public readonly DataSetGlueRole: iam.Role;
-
     public readonly DataLakeBucketName: string;
     public readonly DataLakePrefix: string;
     public readonly DataLakeStagingTargets: glue.CfnCrawler.TargetsProperty;
@@ -82,18 +74,6 @@ export class DatasetGlueRegistration extends cdk.Construct {
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.landingDatabaseName}/`
         });
 
-        // Metadata encryption at rest in landing database
-        /*
-        new CfnDataCatalogEncryptionSettings(this, `${props.landingDatabaseName}DBEncryption`, {
-            catalogId:  this.LandingGlueDatabase.catalogId,
-            dataCatalogEncryptionSettings: {
-                encryptionAtRest: {
-                    catalogEncryptionMode: 'SSE-KMS',
-                    sseAwsKmsKeyId: 'data-lake-kms'
-                },
-            }
-        });
-        */
         this.StagingGlueDatabase = new glue.Database(this, `${props.stagingDatabaseName}`, {
             databaseName: props.stagingDatabaseName,
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.stagingDatabaseName}/`
@@ -103,22 +83,6 @@ export class DatasetGlueRegistration extends cdk.Construct {
             databaseName: props.goldDatabaseName,
             locationUri: `s3://${props.dataLakeBucket.bucketName}/${props.goldDatabaseName}/`
         });
-
-        //TODO: Delete
-        let connectionArray = [];
-
-
-        //TODO: Delete
-        if(props.sourceConnectionInput){
-            this.SourceConnection = new glue.CfnConnection(this, `${props.dataSetName}-src-deonnection`, {
-                catalogId: this.LandingGlueDatabase.catalogId,
-                connectionInput: props.sourceConnectionInput
-            });
-            if(props.sourceConnectionInput.name){
-                connectionArray.push(props.sourceConnectionInput.name);
-            }
-        }
-        //
 
         this.DataSetGlueRole = new iam.Role(this, `${props.dataSetName}-GlueRole`, {
             assumedBy: new iam.ServicePrincipal('glue.amazonaws.com')
@@ -164,11 +128,6 @@ export class DatasetGlueRegistration extends cdk.Construct {
             role: this.DataSetGlueRole.roleArn,
             maxRetries: 0,
             defaultArguments: props.glueStagingScriptArguments,
-            ...(typeof props.sourceConnectionInput !== "undefined" && {
-                connections: {
-                    connections: connectionArray
-                }
-            })
         };
 
         const landingToStagingJob = new glue.CfnJob(this, `${props.landingDatabaseName}-EtlJob`, jobParams );
@@ -191,19 +150,14 @@ export class DatasetGlueRegistration extends cdk.Construct {
             role: this.DataSetGlueRole.roleArn,
             maxRetries: 0,
             defaultArguments: props.glueGoldScriptArguments,
-            ...(typeof props.sourceConnectionInput !== "undefined" && {
-                connections: {
-                    connections: connectionArray
-                }
-            })
         };
 
         const stagingToGoldJob = new glue.CfnJob(this, `${props.landingDatabaseName}-EtlJob2`, jobParams2 );
 
         const goldGlueCrawler = this.setupCrawler(this.GoldGlueDatabase, this.DataLakeGoldTargets, props.goldDatabaseName || "gold");
 
-        const dataLakeWorkflow = new DataLakeEnrollmentWorkflow(this,`${props.dataSetName}DataLakeWorkflow`,{
-            workFlowName: `${props.dataSetName}_DataLakeWorkflow`,
+        const dataLakeWorkflow = new DataLakeEnrollmentWorkflow(this,`${props.dataSetName}Workflow`,{
+            workFlowName: `${props.dataSetName}_Workflow`,
             landingCrawler: landingCrawler,
             landingToStagingGlueJob: landingToStagingJob,
             stagingCrawler: stagingGlueCrawler,
@@ -227,16 +181,16 @@ export interface DataLakeWorkflowContext {
 export class DataLakeEnrollmentWorkflow extends cdk.Construct {
 
     public StartTrigger: glue.CfnTrigger;
-    public readonly SrcCrawlerCompleteTrigger: glue.CfnTrigger;
-    public readonly ETLCompleteTrigger: glue.CfnTrigger;
+    public readonly LandingCrawlerCompleteTrigger: glue.CfnTrigger;
+    public readonly LandingToStagingCompleteTrigger: glue.CfnTrigger;
     public readonly StagingCrawlerCompleteTrigger: glue.CfnTrigger;
-    public readonly StagingToGoldEtlCompleteTrigger: glue.CfnTrigger;
+    public readonly StagingToGoldCompleteTrigger: glue.CfnTrigger;
     public readonly Workflow: glue.CfnWorkflow;
 
     constructor(scope: cdk.Construct, id: string, props: DataLakeWorkflowContext) {
         super(scope, id);
 
-        this.Workflow = new glue.CfnWorkflow(this, "etlWorkflow", {
+        this.Workflow = new glue.CfnWorkflow(this, "Workflow", {
             name: props.workFlowName
         });
 
@@ -250,7 +204,8 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 type: "ON_DEMAND",
                 name: `startWorkflow-${this.Workflow.name}`,
-                workflowName: this.Workflow.name
+                workflowName: this.Workflow.name,
+                startOnCreation: true
             });
         }else{
             this.StartTrigger = new glue.CfnTrigger(this,"startTrigger",{
@@ -267,7 +222,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         }
 
         /* ETL Landing to Staging */
-        this.SrcCrawlerCompleteTrigger = new glue.CfnTrigger(this,"srcCrawlerCompleteTrigger",{
+        this.LandingCrawlerCompleteTrigger = new glue.CfnTrigger(this,"landingCrawlerCompleteTrigger",{
             predicate: {
                 conditions: [
                     {
@@ -278,19 +233,18 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 logical: "ANY"
             },
-            name: `sourceDataCrawled-${this.Workflow.name}`,
+            name: `LandingCrawlerComplete-${this.Workflow.name}`,
             actions: [
                 {
                     jobName: props.landingToStagingGlueJob.name
                 }
             ],
             workflowName: this.Workflow.name,
-            type: "CONDITIONAL",
-            startOnCreation: true
+            type: "CONDITIONAL"
         });
 
         /* Crawler for Staging new files */
-        this.ETLCompleteTrigger = new glue.CfnTrigger(this,"etlCompleteTrigger",{
+        this.LandingToStagingCompleteTrigger = new glue.CfnTrigger(this,"landingToStagingCompleteTrigger",{
             predicate: {
                 conditions: [
                     {
@@ -301,14 +255,15 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 logical: "ANY"
             },
-            name: `EtlComplete-${this.Workflow.name}`,
+            name: `LandingToStagingComplete-${this.Workflow.name}`,
             actions: [
                 {
                     crawlerName: props.stagingCrawler.name
                 }
             ],
             workflowName: this.Workflow.name,
-            type: "CONDITIONAL"
+            type: "CONDITIONAL",
+            startOnCreation: true
         });
 
         /* ETL Staging to Gold */
@@ -323,19 +278,18 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 logical: "ANY"
             },
-            name: `stagingDataCrawled-${this.Workflow.name}`,
+            name: `StagingCrawlerComplete-${this.Workflow.name}`,
             actions: [
                 {
                     jobName: props.stagingToGoldGlueJob.name
                 }
             ],
             workflowName: this.Workflow.name,
-            type: "CONDITIONAL",
-            startOnCreation: true
+            type: "CONDITIONAL"
         });
 
         /* Crawler for Gold new files */
-        this.StagingToGoldEtlCompleteTrigger = new glue.CfnTrigger(this,"stagingToGoldCompleteTrigger",{
+        this.StagingToGoldCompleteTrigger = new glue.CfnTrigger(this,"stagingToGoldCompleteTrigger",{
             predicate: {
                 conditions: [
                     {
@@ -346,23 +300,23 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
                 ],
                 logical: "ANY"
             },
-            name: `StagingToGoldEtlCompleteTrigger-${this.Workflow.name}`,
+            name: `StagingToGoldComplete-${this.Workflow.name}`,
             actions: [
                 {
                     crawlerName: props.goldCrawler.name
                 }
             ],
             workflowName: this.Workflow.name,
-            type: "CONDITIONAL"
+            type: "CONDITIONAL",
+            startOnCreation: true
         });
-
 
         /* Set dependencies for wait the workflow resource creation used in steps definition */
         this.StartTrigger.node.addDependency(this.Workflow);
-        this.SrcCrawlerCompleteTrigger.node.addDependency(this.Workflow);
-        this.ETLCompleteTrigger.node.addDependency(this.Workflow);
+        this.LandingCrawlerCompleteTrigger.node.addDependency(this.Workflow);
+        this.LandingToStagingCompleteTrigger.node.addDependency(this.Workflow);
         this.StagingCrawlerCompleteTrigger.node.addDependency(this.Workflow);
-        this.StagingToGoldEtlCompleteTrigger.node.addDependency(this.Workflow);
+        this.StagingToGoldCompleteTrigger.node.addDependency(this.Workflow);
 
         const activateTriggerRole = new iam.Role(this, 'activateTriggerRole', {
             assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com')
@@ -377,6 +331,7 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
         }));
 
 
+        /* AWS Lambda used for activate workflow steps */
         const activateTriggerFunction = new lambda.SingletonFunction(this, 'activateTriggerSingleton', {
             role: activateTriggerRole,
             uuid: "ActivateGlueTriggerFunction",
@@ -387,6 +342,9 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
             memorySize: 1024
         });
 
+        /* tasks must not only be created, they must also be activated */
+
+        /* If schedule is provided configures */
         if(props.WorkflowCronScheduleExpression != null){
             const CronTrigger_triggerActivation = new cfn.CustomResource(this, 'CronTrigger-triggerActivation',  {
                 provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
@@ -396,17 +354,35 @@ export class DataLakeEnrollmentWorkflow extends cdk.Construct {
             });
         }
 
-        const srcCrawlerCompleteTrigger_triggerActivation = new cfn.CustomResource(this, 'srcCrawlerCompleteTrigger-triggerActivation',  {
+        /* Activate landing crawler using the lambda component */
+        const landingCrawler_activation = new cfn.CustomResource(this, 'srcCrawlerCompleteTrigger-triggerActivation',  {cdk
             provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
             properties: {
-                triggerId: this.SrcCrawlerCompleteTrigger.name
+                triggerId: this.LandingCrawlerCompleteTrigger.name
             }
         });
 
-        const etlTrigger_triggerActivation = new cfn.CustomResource(this, 'etlTrigger-triggerActivation',  {
+        /* Activate workflow step landing to staging using the lambda component */
+        const landingToStaging_activation = new cfn.CustomResource(this, 'etlTrigger-triggerActivation',  {
             provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
             properties: {
-                triggerId: this.ETLCompleteTrigger.name
+                triggerId: this.LandingToStagingCompleteTrigger.name
+            }
+        });
+
+        /* Activate workflow step staging to gold using the lambda component */
+        const stagingCrawlerCompleteTrigger_activation = new cfn.CustomResource(this, 'stagingCrawlerCompleteTrigger_activation',  {
+            provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
+            properties: {
+                triggerId: this.StagingCrawlerCompleteTrigger.name
+            }
+        });
+
+        /* Activate workflow step gold crawling using the lambda component */
+        const stagingToGoldEtlCompleteTrigger_activation = new cfn.CustomResource(this, 'stagingToGoldCompleteTrigger_activation',  {
+            provider: cfn.CustomResourceProvider.lambda(activateTriggerFunction),
+            properties: {
+                triggerId: this.StagingToGoldCompleteTrigger.name
             }
         });
     }
