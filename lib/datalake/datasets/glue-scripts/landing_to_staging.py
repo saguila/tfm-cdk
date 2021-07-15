@@ -6,54 +6,65 @@ from awsglue.context import GlueContext
 from awsglue.job import Job
 import boto3
 
-## @params: [JOB_NAME]
-args = getResolvedOptions(sys.argv, ['JOB_NAME','DL_BUCKET', 'DL_PREFIX','DL_REGION', 'GLUE_SRC_DATABASE'])
 
-sc = SparkContext()
-#avoiding spark creates $folders$ in S3
-hadoop_conf = sc._jsc.hadoopConfiguration()
-hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-hadoop_conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
-job = Job(glueContext)
-job.init(args['JOB_NAME'], args)
+def main():
+    ## @params: [JOB_NAME]
+    args = getResolvedOptions(sys.argv, ['JOB_NAME', 'DL_BUCKET', 'DL_PREFIX', 'DL_REGION', 'GLUE_SRC_DATABASE'])
 
-dataLakeBucket = args["DL_BUCKET"];
-dataLakePrefix = args["DL_PREFIX"];
-aws_region = args["DL_REGION"];
-glue_database = args["GLUE_SRC_DATABASE"];
+    sc = SparkContext()
+    # avoiding spark creates $folders$ in S3
+    hadoop_conf = sc._jsc.hadoopConfiguration()
+    hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+    hadoop_conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+    glueContext = GlueContext(sc)
+    spark = glueContext.spark_session
+    job = Job(glueContext)
+    job.init(args['JOB_NAME'], args)
 
-target_format = "parquet"
-
-client = boto3.client(service_name='glue', region_name=aws_region)
-
-tables = []
-keepPullingTables = True
-nextToken = ''
-
-while keepPullingTables:
-    responseGetTables = client.get_tables(DatabaseName=glue_database, NextToken=nextToken)
-    tableList = responseGetTables['TableList']
-    for tableDict in tableList:
-        tables.append(tableDict['Name'])
-
-    if 'NextToken' in responseGetTables:
-        nextToken = responseGetTables['NextToken']
-    else:
-        nextToken = ''
-
-    keepPullingTables = True if nextToken != '' else False
+    dataLakeBucket = args["DL_BUCKET"]
+    dataLakePrefix = args["DL_PREFIX"]
+    aws_region = args["DL_REGION"]
+    glue_database = args["GLUE_SRC_DATABASE"]
+    process(job, glueContext, glue_database, dataLakeBucket, dataLakePrefix, aws_region)
 
 
-for table in tables:
+def process(job, glueContext, glue_database, dataLakeBucket, dataLakePrefix, aws_region):
+    target_format = "parquet"
 
-    datasource = glueContext.create_dynamic_frame.from_catalog(database = glue_database, table_name = table, transformation_ctx = "datasource")
-    dropnullfields = DropNullFields.apply(frame = datasource, transformation_ctx = "dropnullfields")
+    client = boto3.client(service_name='glue', region_name=aws_region)
 
-    try:
-        datasink = glueContext.write_dynamic_frame.from_options(frame = dropnullfields, connection_type = "s3a", connection_options = {"path": "s3://"+dataLakeBucket + dataLakePrefix + table}, format = target_format, transformation_ctx = "datasink")
-    except:
-        print("Unable to write" + table)
+    tables = []
+    keepPullingTables = True
+    nextToken = ''
 
-job.commit()
+    while keepPullingTables:
+        responseGetTables = client.get_tables(DatabaseName=glue_database, NextToken=nextToken)
+        tableList = responseGetTables['TableList']
+        for tableDict in tableList:
+            tables.append(tableDict['Name'])
+
+        if 'NextToken' in responseGetTables:
+            nextToken = responseGetTables['NextToken']
+        else:
+            nextToken = ''
+
+        keepPullingTables = True if nextToken != '' else False
+
+    for table in tables:
+
+        datasource = glueContext.create_dynamic_frame.from_catalog(database=glue_database, table_name=table,
+                                                                   transformation_ctx="datasource")
+        dropnullfields = DropNullFields.apply(frame=datasource, transformation_ctx="dropnullfields")
+
+        try:
+            datasink = glueContext.write_dynamic_frame.from_options(frame=dropnullfields, connection_type="s3a",
+                                                                    connection_options={
+                                                                        "path": "s3://" + dataLakeBucket + dataLakePrefix + table},
+                                                                    format=target_format, transformation_ctx="datasink")
+        except:
+            print("Unable to write" + table)
+
+    job.commit()
+
+
+main()

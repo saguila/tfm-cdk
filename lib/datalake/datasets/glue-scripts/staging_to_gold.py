@@ -17,7 +17,22 @@ from awsglue.dynamicframe import DynamicFrame
 
 import boto3
 
+
+def delete_temporary_s3_objects(dataLakeBucket, aws_region):
+    s3 = boto3.client(service_name='s3', region_name=aws_region)
+    s3_resource = boto3.resource('s3', region_name=aws_region)
+    bucket = s3_resource.Bucket(dataLakeBucket)
+    objects = bucket.objects.filter()
+    objects_to_delete = [{'Key': o.key} for o in objects if o.key.endswith('_$folder$')]
+    if len(objects_to_delete):
+        s3_resource.meta.client.delete_objects(Bucket='my-bucket', Delete={'Objects': objects_to_delete})
+    for element in objects_to_delete:
+        s3.delete_object(Bucket=dataLakeBucket, Key=element['Key'])
+
+
 def fake_data(kind):
+    locale = 'es_ES'
+    fake = Factory.create(locale)
     if kind == 'lat':
         return str(fake.latitude())
     elif kind == 'long':
@@ -28,17 +43,14 @@ def fake_data(kind):
         return 'None'
 
 
-locale = 'es_ES'
-fake = Factory.create(locale)
-faker_udf = udf(fake_data, StringType())
-
 
 def faker_anonymization(input_df, conf):
+    faker_udf = udf(fake_data, StringType())
     output_df = input_df
     for column in conf:
         print(column, '->', conf[column])
         kind = conf[column]
-        output_df = output_df.withColumn(column + '_ano', faker_udf(lit(kind)))
+        output_df = output_df.withColumn(column + '_anon', faker_udf(lit(kind)))
     return output_df
 
 
@@ -46,7 +58,7 @@ def hash_pseudo_anonymization(inputDF: DataFrame, columns: list) -> DataFrame:
     from pyspark.sql import functions
     outputDataFrame: DataFrame = inputDF
     for column in columns:
-        outputDataFrame = outputDataFrame.withColumn(column + '_ano',
+        outputDataFrame = outputDataFrame.withColumn(column + '_anon',
                                                      functions.md5(functions.col(column).cast('String')))
     return outputDataFrame
 
@@ -79,8 +91,8 @@ def mondrian_k_anonymization(k, input_dataframe, categorical_list, feature_colum
         feature_columns,
         sensitive_column,
         categorical,
-        schema).toDF(*(column_name + "_ano" for column_name in output_columns))
-    return df.join(df_ano, df[sensitive_column] == df_ano[sensitive_column + '_ano'], "left")
+        schema).toDF(*(column_name + "_anon" for column_name in output_columns))
+    return df.join(df_ano, df[sensitive_column] == df_ano[sensitive_column + '_anon'], "left")
 
 
 def anonymize(input_df, table_ano_conf):
@@ -94,104 +106,110 @@ def anonymize(input_df, table_ano_conf):
         print('feature_columns -> ', feature_columns)
         sensitive_column = table_ano_conf['sensitive_column']
         print('sensitive_column -> ', sensitive_column)
-        output_df = mondrian_k_anonymization(k, input_dataframe, categorical_list, feature_columns,
+        output_df = mondrian_k_anonymization(k, input_df, categorical_list, feature_columns,
                                              sensitive_column)
     elif anonymization_method == 'pseudo-hash':
         hash_columns = table_ano_conf['hash_columns']
         print('hash_columns -> ', hash_columns)
-        output_df = hash_pseudo_anonymization(input_dataframe, hash_columns)
+        output_df = hash_pseudo_anonymization(input_df, hash_columns)
     elif anonymization_method == 'faker-anonymization':
         columns = table_ano_conf['columns']
         print('columns -> ', columns)
-        output_df = faker_anonymization(input_dataframe, columns)
+        output_df = faker_anonymization(input_df, columns)
     else:
         output_df = input_df
     return output_df
 
-#TODO: agrupar en main
 
-args = getResolvedOptions(sys.argv, ['JOB_NAME', 'DL_BUCKET', 'DL_PREFIX', 'DL_REGION', 'GLUE_SRC_DATABASE',
-                                     'ANONYMIZATION_CONF'])
-sc = SparkContext()
+def process(job, dataLakeBucket, dataLakePrefix, anonymization_conf_dict, position_references_in_conf, glueContext,
+            glue_database, aws_region):
+    target_format = "parquet"
 
-os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
+    client = boto3.client(service_name='glue', region_name=aws_region)
 
-# avoiding spark creates $folders$ in S3
-hadoop_conf = sc._jsc.hadoopConfiguration()
-hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-hadoop_conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
+    tables = []
+    keepPullingTables = True
+    nextToken = ''
 
-# Needed to reliably work between parquet, spark, and pandas dataframes.
-spark.conf.set("spark.executorEnv.ARROW_PRE_0_15_IPC_FORMAT", "1")
-spark.conf.set("spark.yarn.appMasterEnv.ARROW_PRE_0_15_IPC_FORMAT", "1")
+    while keepPullingTables:
+        responseGetTables = client.get_tables(DatabaseName=glue_database, NextToken=nextToken)
+        tableList = responseGetTables['TableList']
+        print('tableList:', tableList)
+        for tableDict in tableList:
+            tables.append(tableDict['Name'])
+        print('tables:', tables)
+        if 'NextToken' in responseGetTables:
+            nextToken = responseGetTables['NextToken']
+        else:
+            nextToken = ''
 
-job = Job(glueContext)
-job.init(args['JOB_NAME'], args)
+        keepPullingTables = True if nextToken != '' else False
 
-input_conf_str_json = args["ANONYMIZATION_CONF"]
+    for table in tables:
+        print('table:', table)
+        datasource = glueContext.create_dynamic_frame.from_catalog(database=glue_database, table_name=table,
+                                                                   transformation_ctx="datasource")
+        dropnullfields = DropNullFields.apply(frame=datasource, transformation_ctx="dropnullfields")
+        if table in position_references_in_conf:
+            print('Anonimization for table ', table)
+            input_dataframe: DataFrame = datasource.toDF()
+            table_ano_conf = anonymization_conf_dict['datasets'][position_references_in_conf[table]]
+            df_anonimized = anonymize(input_dataframe, table_ano_conf)
+            # df_anonimized.show()
+            dynamic_frame_anonimized = DynamicFrame.fromDF(df_anonimized, glueContext, table + "_anon")
+        else:
+            dynamic_frame_anonimized = datasource
 
-print('input_conf_str_json:', input_conf_str_json)
-anonymization_conf_dict = json.loads(input_conf_str_json)
-print('anonimization_conf_dict:', anonymization_conf_dict)
-position_references_in_conf = {}
-for i in range(len(anonymization_conf_dict['datasets'])):
-    position_references_in_conf[anonymization_conf_dict['datasets'][i]['table']] = i
-print('position_references_in_conf:', position_references_in_conf)
+        try:
+            datasink = glueContext.write_dynamic_frame.from_options(frame=dynamic_frame_anonimized,
+                                                                    connection_type="s3",
+                                                                    connection_options={
+                                                                        "path": "s3://" + dataLakeBucket + dataLakePrefix + table},
+                                                                    format=target_format, transformation_ctx="datasink")
+        except Exception as e:
+            print("Unable to write" + table)
+            print(str(e))
+    job.commit()
 
-dataLakeBucket = args["DL_BUCKET"]
-dataLakePrefix = args["DL_PREFIX"]
-aws_region = args["DL_REGION"]
 
-glue_database = args["GLUE_SRC_DATABASE"]
-print('glue_database:', glue_database)
-target_format = "parquet"
+def main():
+    args = getResolvedOptions(sys.argv, ['JOB_NAME', 'DL_BUCKET', 'DL_PREFIX', 'DL_REGION', 'GLUE_SRC_DATABASE',
+                                         'ANONYMIZATION_CONF'])
+    sc = SparkContext()
 
-client = boto3.client(service_name='glue', region_name=aws_region)
+    os.environ["ARROW_PRE_0_15_IPC_FORMAT"] = "1"
 
-tables = []
-keepPullingTables = True
-nextToken = ''
+    # avoiding spark creates $folders$ in S3
+    hadoop_conf = sc._jsc.hadoopConfiguration()
+    # hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+    # hadoop_conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+    glueContext = GlueContext(sc)
+    spark = glueContext.spark_session
 
-print(dataLakeBucket)
+    # Needed to reliably work between parquet, spark, and pandas dataframes.
+    spark.conf.set("spark.executorEnv.ARROW_PRE_0_15_IPC_FORMAT", "1")
+    spark.conf.set("spark.yarn.appMasterEnv.ARROW_PRE_0_15_IPC_FORMAT", "1")
 
-while keepPullingTables:
-    responseGetTables = client.get_tables(DatabaseName=glue_database, NextToken=nextToken)
-    tableList = responseGetTables['TableList']
-    print('tableList:', tableList)
-    for tableDict in tableList:
-        tables.append(tableDict['Name'])
-    print('tables:', tables)
-    if 'NextToken' in responseGetTables:
-        nextToken = responseGetTables['NextToken']
-    else:
-        nextToken = ''
+    job = Job(glueContext)
+    job.init(args['JOB_NAME'], args)
 
-    keepPullingTables = True if nextToken != '' else False
+    input_conf_str_json = args["ANONYMIZATION_CONF"]
 
-for table in tables:
-    print('table:', table)
-    datasource = glueContext.create_dynamic_frame.from_catalog(database=glue_database, table_name=table,
-                                                               transformation_ctx="datasource")
-    dropnullfields = DropNullFields.apply(frame=datasource, transformation_ctx="dropnullfields")
-    if table in position_references_in_conf:
-        print('Anonimization for table ', table)
-        input_dataframe: DataFrame = datasource.toDF()
-        table_ano_conf = anonymization_conf_dict['datasets'][position_references_in_conf[table]]
-        df_anonimized = anonymize(input_dataframe, table_ano_conf)
-        # df_anonimized.show()
-        dynamic_frame_anonimized = DynamicFrame.fromDF(df_anonimized, glueContext, table + "_ano")
-    else:
-        dynamic_frame_anonimized = datasource
+    print('input_conf_str_json:', input_conf_str_json)
+    anonymization_conf_dict = json.loads(input_conf_str_json)
+    print('anonimization_conf_dict:', anonymization_conf_dict)
+    position_references_in_conf = {}
+    for i in range(len(anonymization_conf_dict['datasets'])):
+        position_references_in_conf[anonymization_conf_dict['datasets'][i]['table']] = i
+    print('position_references_in_conf:', position_references_in_conf)
 
-    try:
-        datasink = glueContext.write_dynamic_frame.from_options(frame=dynamic_frame_anonimized, connection_type="s3a",
-                                                                connection_options={
-                                                                    "path": "s3://" + dataLakeBucket + dataLakePrefix + table},
-                                                                format=target_format, transformation_ctx="datasink")
-    except Exception as e:
-        print("Unable to write" + table)
-        print(str(e))
+    dataLakeBucket = args["DL_BUCKET"]
+    dataLakePrefix = args["DL_PREFIX"]
+    aws_region = args["DL_REGION"]
 
-job.commit()
+    glue_database = args["GLUE_SRC_DATABASE"]
+    process(job, dataLakeBucket, dataLakePrefix, anonymization_conf_dict, position_references_in_conf, glueContext,
+            glue_database, aws_region)
+    delete_temporary_s3_objects(dataLakeBucket, aws_region)
+
+main()

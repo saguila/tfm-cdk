@@ -1,2 +1,2 @@
 FROM amazon/aws-glue-libs:glue_libs_1.0.0_image_01
-RUN pip3 install spark_privacy_preserver==0.3.1 pyspark==2.4.5 pyarrow==0.14.1 diffprivlib==0.2.1 mypy==0.770 tabulate==0.8.7 numpy==1.15.4 pandas==1.1.5 faker==8.8.1
+RUN pip3 install spark_privacy_preserver==0.3.1 pyspark==2.4.3 pyarrow==0.14.1 diffprivlib==0.2.1 mypy==0.770 tabulate==0.8.7 numpy==1.15.4 pandas==1.1.5 faker==8.8.1
